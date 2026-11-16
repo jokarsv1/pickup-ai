@@ -1,0 +1,20 @@
+# Python
+__pycache__/
+*.pyc
+.venv/
+*.db
+backend/recordings/
+backend/.env
+.pytest_cache/
+# Android
+android/.gradle/
+android/build/
+android/app/build/
+android/local.properties
+android/app/google-services.json
+android/*.jks
+android/keystore.properties
+.idea/
+*.iml
+# OS
+.DS_Store

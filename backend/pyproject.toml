@@ -1,0 +1,40 @@
+[project]
+name = "pickup-backend"
+version = "0.1.0"
+description = "Pickup: an AI assistant that answers your calls. API, telephony webhooks and the real-time voice agent."
+requires-python = ">=3.12"
+dependencies = [
+  "fastapi>=0.163",
+  "uvicorn[standard]>=0.38",
+  "sqlalchemy[asyncio]>=2.1",
+  "asyncpg>=0.31",
+  "aiosqlite>=0.21",
+  "alembic>=1.17",
+  "pydantic>=2.14",
+  "pydantic-settings>=2.16",
+  "pyjwt>=2.10",
+  "httpx>=0.28",
+  "anthropic>=2.9",
+  "redis>=8.0",
+  "google-auth>=2.62",
+  "phonenumbers>=9.0",
+  "twilio>=9.13",
+  "plivo>=4.63",
+  "boto3>=1.40",
+  "python-multipart>=0.0.20",
+  "loguru>=0.7",
+  # Real-time voice pipeline. Extras: VAD + Smart Turn, Sarvam (India), Deepgram, ElevenLabs, Cartesia.
+  "pipecat-ai[silero,sarvam,deepgram,elevenlabs,cartesia,websocket,anthropic]>=1.16",
+]
+
+[project.optional-dependencies]
+dev = ["pytest>=8", "pytest-asyncio>=1.0", "respx>=0.22"]
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+asyncio_default_fixture_loop_scope = "function"
+testpaths = ["tests"]
+filterwarnings = ["ignore::DeprecationWarning"]
+
+[tool.setuptools.packages.find]
+include = ["app*"]
