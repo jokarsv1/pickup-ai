@@ -12,17 +12,20 @@ This uses text, not audio: it tests what the agent says, not speech recognition 
 
 import argparse
 import json
+import os
 import sys
 from pathlib import Path
 
 import anthropic
 from pydantic import BaseModel
 
+from app.ai.llm import fallback_args
 from app.ai.prompts import CallContext, greeting_for, voice_system_prompt
 from app.config import get_settings
 
-MAX_TURNS = 8
-FALLBACK_BETA = "server-side-fallback-2026-07-01"
+MAX_TURNS = 10
+# The caller simulator and the grader stay on a stronger model than the agent under test.
+SIM_MODEL = os.environ.get("EVAL_SIM_MODEL", "claude-opus-5-5")
 
 AGENT_TOOLS = [
     {
@@ -78,7 +81,7 @@ def run_scenario(client: anthropic.Anthropic, model: str, scenario: dict, verbos
     for _ in range(MAX_TURNS):
         caller_view = "\n".join(f"{'You' if s == 'caller' else 'Assistant'}: {t}" for s, t in transcript)
         caller = client.messages.create(
-            model=model,
+            model=SIM_MODEL,
             max_tokens=300,
             system=scenario["caller"]
             + " You are on a phone call with an AI assistant answering for the person you called. Reply with your next spoken line only. "
@@ -99,8 +102,7 @@ def run_scenario(client: anthropic.Anthropic, model: str, scenario: dict, verbos
             messages=messages,
             tools=AGENT_TOOLS,
             output_config={"effort": get_settings().claude_live_effort},
-            betas=[FALLBACK_BETA],
-            fallbacks="default",
+            **fallback_args(model),
         )
         content = [block.model_dump(mode="json", exclude_none=True) for block in reply.content]
         messages.append({"role": "assistant", "content": content})
@@ -117,7 +119,7 @@ def run_scenario(client: anthropic.Anthropic, model: str, scenario: dict, verbos
         rendered += f"\n(The assistant called the {tool_used} tool.)"
     checks = "\n".join(f"- {c}" for c in scenario["checks"])
     grade = client.messages.parse(
-        model=model,
+        model=SIM_MODEL,
         max_tokens=2000,
         system="You grade phone conversations handled by an AI call assistant. Be strict and literal. Judge only from the transcript.",
         messages=[{"role": "user", "content": f"Transcript:\n{rendered}\n\nChecks:\n{checks}\n\nGrade each check, then rate naturalness 1-5."}],
@@ -148,6 +150,7 @@ def main() -> int:
     if args.ids:
         scenarios = [s for s in scenarios if s["id"] in args.ids]
 
+    print(f"Assistant model: {settings.claude_model} (effort {settings.claude_live_effort}); caller and grader: {SIM_MODEL}")
     results = [run_scenario(client, settings.claude_model, s, args.verbose) for s in scenarios]
     total = sum(r["total"] for r in results)
     passed = sum(r["passed"] for r in results)

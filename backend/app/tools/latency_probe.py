@@ -18,6 +18,7 @@ import anthropic
 import httpx
 from sarvamai import AsyncSarvamAI
 
+from app.ai.llm import fallback_args
 from app.ai.prompts import INSIGHTS_SYSTEM, INTENT_SYSTEM, CallContext, greeting_for, render_transcript, voice_system_prompt
 from app.ai.schemas import CallInsights, LiveIntent
 from app.config import get_settings
@@ -32,8 +33,12 @@ CALLER_LINES = [
     "बस इतना ही था. Thank you, have a good day.",
 ]
 
-# Claude Opus 5.5 list prices, USD per million tokens.
-PRICE = {"input": 4.00, "output": 20.00, "cache_write": 5.00, "cache_read": 0.20}
+# List prices, USD per million tokens (5-minute cache writes; Haiku 5.5 prompts under 100K tokens).
+PRICES = {
+    "claude-haiku-5-5": {"input": 0.10, "output": 0.50, "cache_write": 0.125, "cache_read": 0.01},
+    "claude-sonnet-5-5": {"input": 2.00, "output": 10.00, "cache_write": 2.50, "cache_read": 0.10},
+    "claude-opus-5-5": {"input": 4.00, "output": 20.00, "cache_write": 5.00, "cache_read": 0.20},
+}
 SARVAM_STT_INR_PER_MIN = 0.49
 SARVAM_TTS_INR_PER_1K_CHARS = 3.00
 SENTENCE_END = (".", "?", "!", "।")
@@ -49,11 +54,12 @@ def tool_defs() -> list[dict]:
 
 def usd(usage) -> float:
     u = usage
+    price = PRICES.get(get_settings().claude_model, PRICES["claude-opus-5-5"])
     return (
-        (u.input_tokens or 0) * PRICE["input"]
-        + (u.output_tokens or 0) * PRICE["output"]
-        + (getattr(u, "cache_creation_input_tokens", 0) or 0) * PRICE["cache_write"]
-        + (getattr(u, "cache_read_input_tokens", 0) or 0) * PRICE["cache_read"]
+        (u.input_tokens or 0) * price["input"]
+        + (u.output_tokens or 0) * price["output"]
+        + (getattr(u, "cache_creation_input_tokens", 0) or 0) * price["cache_write"]
+        + (getattr(u, "cache_read_input_tokens", 0) or 0) * price["cache_read"]
     ) / 1_000_000
 
 
@@ -148,7 +154,7 @@ async def main() -> None:
             model=s.claude_model, max_tokens=1500, system=INTENT_SYSTEM,
             messages=[{"role": "user", "content": "Live transcript so far:\n\n" + render_transcript(pairs[: i + 1], "Asha")}],
             output_format=LiveIntent, output_config={"effort": "low"},
-            betas=["server-side-fallback-2026-07-01"], fallbacks="default",
+            **fallback_args(s.claude_model),
         )
         intents.append({"ms": round((time.perf_counter() - t) * 1000), "usage": usage_dict(r.usage), "usd": usd(r.usage)})
 
@@ -158,7 +164,7 @@ async def main() -> None:
         model=s.claude_model, max_tokens=3000, system=INSIGHTS_SYSTEM,
         messages=[{"role": "user", "content": "Owner: Asha Rao. Caller number: +91 98123 45678.\n\nTranscript:\n" + render_transcript(pairs, "Asha")}],
         output_format=CallInsights, output_config={"effort": "medium"},
-        betas=["server-side-fallback-2026-07-01"], fallbacks="default",
+        **fallback_args(s.claude_model),
     )
     summary = {"ms": round((time.perf_counter() - t) * 1000), "usage": usage_dict(r.usage), "usd": usd(r.usage),
                "result": r.parsed_output.model_dump() if r.parsed_output else None}

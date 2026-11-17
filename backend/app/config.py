@@ -41,7 +41,7 @@ class Settings(BaseSettings):
 
     # --- AI -------------------------------------------------------------------
     anthropic_api_key: str | None = None
-    claude_model: str = "claude-opus-5-5"  # live calls, summaries and the assistant chat
+    claude_model: str = "claude-haiku-5-5"  # live calls, summaries and the assistant chat (CLAUDE_MODEL overrides)
     claude_live_effort: Literal["low", "medium", "high"] = "low"
     stt_provider: Literal["sarvam", "deepgram"] = "sarvam"
     tts_provider: Literal["sarvam", "elevenlabs", "cartesia"] = "sarvam"

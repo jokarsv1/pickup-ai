@@ -22,7 +22,7 @@ User answers normally                          Carrier "forward when busy" (**67
  Pipecat pipeline (per call)                         Live events (Redis pub/sub)        Post-call job
  Silero VAD + Smart Turn v3                          → WebSocket when app is open      Claude structured output:
  Sarvam Saaras v3 STT (Hinglish)                     → FCM data push otherwise         summary, category, actions
- Claude (claude-opus-5-5, effort low)                → Live Update notification        → push + reputation
+ Claude (claude-haiku-5-5, effort low)               → Live Update notification        → push + reputation
  Sarvam Bulbul v3 TTS                                  with Reply / Join / End
 ```
 

@@ -32,7 +32,7 @@ and builds the Android app on every push. Download the debug APK from the **Andr
 ## 1. Anthropic API key
 
 1. Create a key at platform.claude.com → API keys.
-2. Set `ANTHROPIC_API_KEY`. Models default to `claude-opus-5-5` (`CLAUDE_MODEL`).
+2. Set `ANTHROPIC_API_KEY`. The model defaults to `claude-haiku-5-5`, the fastest and cheapest (`CLAUDE_MODEL=claude-opus-5-5` or `claude-sonnet-5-5` to change).
 3. Try the agent right away, no phone line needed:
 
 ```bash

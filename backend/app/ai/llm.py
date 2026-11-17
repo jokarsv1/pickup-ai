@@ -2,8 +2,9 @@
 
 The live call itself runs through Pipecat's AnthropicLLMService (see app/voice/pipeline.py).
 
-Server-side refusal fallbacks are on by default: if the main model declines a request, the
-API retries it on a fallback model inside the same call instead of returning nothing.
+Server-side refusal fallbacks are on for models that have them (Opus, Sonnet, Fable): if the main
+model declines a request, the API retries it on a fallback model inside the same call. Claude
+Haiku 5.5 has no server-side fallback, so its requests go without (a refusal raises LLMError).
 """
 
 from typing import Any, Protocol, TypeVar
@@ -17,6 +18,13 @@ from app.config import get_settings
 T = TypeVar("T", bound=BaseModel)
 
 FALLBACK_BETA = "server-side-fallback-2026-07-01"
+
+
+def fallback_args(model: str) -> dict[str, Any]:
+    """Request fields that turn on server-side refusal fallbacks, for models that support them."""
+    if "haiku" in model:
+        return {}
+    return {"betas": [FALLBACK_BETA], "fallbacks": "default"}
 
 
 class LLMError(Exception):
@@ -45,8 +53,7 @@ class ClaudeLLM:
                 messages=[{"role": "user", "content": prompt}],
                 output_format=schema,
                 output_config={"effort": effort},
-                betas=[FALLBACK_BETA],
-                fallbacks="default",
+                **fallback_args(self._model),
             )
         except anthropic.APIError as exc:
             raise LLMError(str(exc)) from exc
@@ -67,8 +74,7 @@ class ClaudeLLM:
                 messages=messages,
                 tools=tools,
                 output_config={"effort": effort},
-                betas=[FALLBACK_BETA],
-                fallbacks="default",
+                **fallback_args(self._model),
             )
         except anthropic.APIError as exc:
             raise LLMError(str(exc)) from exc
