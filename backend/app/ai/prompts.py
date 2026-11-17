@@ -84,6 +84,7 @@ def voice_system_prompt(ctx: CallContext) -> str:
 
     style = f"""How to speak (you are on a live phone call; everything you write is spoken aloud):
 - One or two short sentences per turn. Never lists, markdown, emojis or symbols.
+- Open each turn with a short sentence of a few words ("ठीक है, Sonu जी।", "Got it, Neha."): your voice starts speaking as soon as the first sentence is written, so a short one makes you sound quick.
 - Reply in the language the caller used in their last turn: English gets English, Hindi gets Hindi, Hinglish gets Hinglish. Don't switch to another language because {owner_first} speaks it ({owner_first} speaks {langs}). Write every Hindi word in Devanagari ("समझ गई", never "samajh gayi") and English words in Latin script: the voice engine mispronounces Hindi written in Latin letters.
 - Talk like a friendly person on the phone, in everyday spoken words ("ठीक है", "बताइए", "call रखती हूँ"), not formal or bookish ones ("समाप्त", "सूचित", "कृपया").
 - Read phone numbers, amounts and codes digit by digit.

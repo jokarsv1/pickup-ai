@@ -47,6 +47,24 @@ def _guessable(code: str) -> bool:
     return len(digits) == len(code) and steps in ({1}, {-1})
 
 
+async def _prewarm_voice_models() -> None:
+    """Load the speech models once at startup. Otherwise the first call after a restart waits
+    about a second (imports plus the voice-activity and turn-taking models) before its greeting."""
+
+    def load() -> None:
+        from pipecat.audio.turn.smart_turn.local_smart_turn_v3 import LocalSmartTurnAnalyzerV3
+        from pipecat.audio.vad.silero import SileroVADAnalyzer
+
+        SileroVADAnalyzer()
+        LocalSmartTurnAnalyzerV3()
+
+    try:
+        await asyncio.to_thread(load)
+        logger.info("Voice models loaded")
+    except Exception:
+        logger.exception("Voice model warm-up failed")
+
+
 @contextlib.asynccontextmanager
 async def lifespan(_app: FastAPI) -> AsyncIterator[None]:
     s = get_settings()
@@ -59,7 +77,7 @@ async def lifespan(_app: FastAPI) -> AsyncIterator[None]:
     if s.env != "test":
         from app.services.outbound import scheduler_loop
 
-        tasks = [asyncio.create_task(scheduler_loop()), asyncio.create_task(retention_loop())]
+        tasks = [asyncio.create_task(scheduler_loop()), asyncio.create_task(retention_loop()), asyncio.create_task(_prewarm_voice_models())]
     try:
         yield
     finally:
