@@ -1,5 +1,6 @@
 """Sign-in, profile, devices, plan and the WebSocket ticket."""
 
+import hmac
 from datetime import UTC, datetime, timedelta
 
 from fastapi import APIRouter, HTTPException, status
@@ -54,6 +55,8 @@ async def public_config() -> PublicConfig:
         modes.append("firebase")
     if s.dev_auth_enabled and s.is_dev:
         modes.append("dev")
+    if s.beta_login_enabled:
+        modes.append("beta")
     missing = missing_keys()
     return PublicConfig(
         auth_modes=modes,
@@ -62,6 +65,7 @@ async def public_config() -> PublicConfig:
         voice_ready=not missing,
         missing_keys=missing,
         play_products=s.play_pro_product_ids,
+        support_email=s.support_email,
     )
 
 
@@ -100,13 +104,17 @@ async def login_firebase(body: FirebaseLogin, session: Session) -> TokensOut:
 
 @router.post("/v1/auth/dev", response_model=TokensOut)
 async def login_dev(body: DevLogin, session: Session) -> TokensOut:
+    """Code login without SMS: any number in development, allowlisted beta numbers in production."""
     s = get_settings()
-    if not (s.dev_auth_enabled and s.is_dev):
-        raise HTTPException(status.HTTP_404_NOT_FOUND, "Not available")
     phone = normalize(body.phone)
+    dev_ok = s.dev_auth_enabled and s.is_dev
+    beta_ok = s.beta_login_enabled and phone in s.beta_numbers
+    if not (dev_ok or beta_ok):
+        raise HTTPException(status.HTTP_403_FORBIDDEN, "This number isn't in the beta yet")
     if not phone:
         raise HTTPException(status.HTTP_400_BAD_REQUEST, "Enter a valid mobile number")
-    if body.code != s.dev_auth_code:
+    expected = s.dev_auth_code if dev_ok else s.beta_login_code
+    if not hmac.compare_digest(body.code, expected or ""):
         raise HTTPException(status.HTTP_401_UNAUTHORIZED, "That code isn't right")
     return await _issue(session, phone)
 

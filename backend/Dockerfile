@@ -10,10 +10,11 @@ COPY migrations ./migrations
 COPY alembic.ini ./
 RUN pip install --upgrade pip && pip install .
 
+COPY docker-entrypoint.sh ./
 RUN useradd --create-home pickup && mkdir -p /app/recordings && chown -R pickup /app
-USER pickup
 
 EXPOSE 8000
-# Run migrations, then serve. One worker per container: each live call holds a WebSocket and
-# a voice pipeline in memory, so scale out with more containers behind the load balancer.
-CMD ["sh", "-c", "alembic upgrade head && uvicorn app.main:app --host 0.0.0.0 --port 8000 --proxy-headers --forwarded-allow-ips='*'"]
+# The entrypoint drops to the "pickup" user, runs migrations, then serves. One worker per
+# container: each live call holds a WebSocket and a voice pipeline in memory, so scale out with
+# more containers behind the load balancer.
+ENTRYPOINT ["/app/docker-entrypoint.sh"]

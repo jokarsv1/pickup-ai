@@ -16,7 +16,7 @@ val apiBaseUrl = providers.gradleProperty("pickup.apiBaseUrl").getOrElse("http:/
 
 android {
     namespace = "ai.pickup.app"
-    compileSdk = 36
+    compileSdk = 37 // current AndroidX (Compose 1.12, Navigation 2.10) requires compiling against 37
 
     defaultConfig {
         applicationId = "ai.pickup.app"
@@ -30,6 +30,17 @@ android {
     buildFeatures {
         compose = true
         buildConfig = true
+    }
+
+    // A fixed test key so the app's SHA fingerprints never change between builds (Firebase needs
+    // them registered). It's a debug key, safe to share; Play releases use a separate upload key.
+    signingConfigs {
+        getByName("debug") {
+            storeFile = rootProject.file("keystore/debug.keystore")
+            storePassword = "android"
+            keyAlias = "androiddebugkey"
+            keyPassword = "android"
+        }
     }
 
     buildTypes {

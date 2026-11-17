@@ -1,0 +1,61 @@
+name: Deploy backend (Fly.io)
+
+# Runs when you set the FLY_APP_NAME variable and FLY_API_TOKEN secret (see docs/guides/HOSTING.md).
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths: ["backend/**", ".github/workflows/deploy.yml", ".github/scripts/fly_secrets.py"]
+
+concurrency: deploy
+
+jobs:
+  deploy:
+    if: ${{ vars.FLY_APP_NAME != '' }}
+    runs-on: ubuntu-latest
+    env:
+      FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}
+      APP: ${{ vars.FLY_APP_NAME }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: superfly/flyctl-actions/setup-flyctl@master
+      - name: Create the app and its storage (first deploy only)
+        run: |
+          flyctl apps list --json | grep -q "\"$APP\"" || flyctl apps create "$APP"
+          flyctl volumes list --app "$APP" --json | grep -q pickup_data || flyctl volumes create pickup_data --app "$APP" --region bom --size 1 --yes
+      - name: Sync configuration into Fly secrets
+        env:
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          SARVAM_API_KEY: ${{ secrets.SARVAM_API_KEY }}
+          DEEPGRAM_API_KEY: ${{ secrets.DEEPGRAM_API_KEY }}
+          ELEVENLABS_API_KEY: ${{ secrets.ELEVENLABS_API_KEY }}
+          CARTESIA_API_KEY: ${{ secrets.CARTESIA_API_KEY }}
+          FCM_SERVICE_ACCOUNT_JSON: ${{ secrets.FCM_SERVICE_ACCOUNT_JSON }}
+          BETA_LOGIN_CODE: ${{ secrets.BETA_LOGIN_CODE }}
+          EXOTEL_API_KEY: ${{ secrets.EXOTEL_API_KEY }}
+          EXOTEL_API_TOKEN: ${{ secrets.EXOTEL_API_TOKEN }}
+          PLIVO_AUTH_TOKEN: ${{ secrets.PLIVO_AUTH_TOKEN }}
+          TWILIO_AUTH_TOKEN: ${{ secrets.TWILIO_AUTH_TOKEN }}
+          GOOGLE_PLAY_SERVICE_ACCOUNT_JSON: ${{ secrets.GOOGLE_PLAY_SERVICE_ACCOUNT_JSON }}
+          FIREBASE_PROJECT_ID: ${{ vars.FIREBASE_PROJECT_ID }}
+          BETA_LOGIN_NUMBERS: ${{ vars.BETA_LOGIN_NUMBERS }}
+          TELEPHONY_PROVIDER: ${{ vars.TELEPHONY_PROVIDER }}
+          EXOTEL_ACCOUNT_SID: ${{ vars.EXOTEL_ACCOUNT_SID }}
+          EXOTEL_SUBDOMAIN: ${{ vars.EXOTEL_SUBDOMAIN }}
+          EXOTEL_OUTBOUND_FLOW_ID: ${{ vars.EXOTEL_OUTBOUND_FLOW_ID }}
+          PLIVO_AUTH_ID: ${{ vars.PLIVO_AUTH_ID }}
+          TWILIO_ACCOUNT_SID: ${{ vars.TWILIO_ACCOUNT_SID }}
+          LEGAL_ENTITY_NAME: ${{ vars.LEGAL_ENTITY_NAME }}
+          LEGAL_ADDRESS: ${{ vars.LEGAL_ADDRESS }}
+          LEGAL_JURISDICTION_CITY: ${{ vars.LEGAL_JURISDICTION_CITY }}
+          SUPPORT_EMAIL: ${{ vars.SUPPORT_EMAIL }}
+          GRIEVANCE_OFFICER: ${{ vars.GRIEVANCE_OFFICER }}
+          PUBLIC_BASE_URL: ${{ vars.PUBLIC_BASE_URL }}
+        run: python3 .github/scripts/fly_secrets.py
+      - name: Deploy
+        working-directory: backend
+        run: flyctl deploy --app "$APP" --remote-only --ha=false --yes
+      - name: Check it's up
+        run: |
+          sleep 15
+          curl -fsS "https://$APP.fly.dev/healthz" && echo && curl -fsS "https://$APP.fly.dev/v1/config"

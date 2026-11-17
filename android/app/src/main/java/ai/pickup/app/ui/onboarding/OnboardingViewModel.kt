@@ -51,6 +51,7 @@ data class OnboardingState(
     val error: String? = null,
 ) {
     val useFirebase: Boolean get() = config?.authModes?.contains("firebase") == true
+    val betaOnly: Boolean get() = config?.authModes?.let { "beta" in it && "firebase" !in it && "dev" !in it } == true
     val devCodeHint: String? get() = config?.devCodeHint
 }
 
@@ -120,7 +121,7 @@ class OnboardingViewModel(private val graph: AppGraph, private val forcedStep: S
             _state.update { it.copy(error = "Sign-in isn't set up on this server yet.") }
             return
         }
-        if ("dev" !in modes && !graph.firebaseAvailable) {
+        if ("dev" !in modes && "beta" !in modes && !graph.firebaseAvailable) {
             _state.update { it.copy(error = "This build can't send codes yet: add google-services.json and rebuild.") }
             return
         }

@@ -233,3 +233,26 @@ async def test_settings_rules_and_policy(app_env):
     assert "+919811122233" in policy["always_ring"] and "+918047491899" in policy["always_ring"]
     options = (await c.get("/v1/assistant/options", headers=headers)).json()
     assert options["packs"] and "delivery" in options["categories"]
+
+
+async def test_legal_pages_and_beta_login(app_env):
+    from app.config import get_settings
+
+    c = app_env.client
+    privacy = await c.get("/legal/privacy")
+    terms = await c.get("/legal/terms")
+    assert privacy.status_code == 200 and "Grievance officer" in privacy.text
+    assert terms.status_code == 200 and "laws of India" in terms.text
+
+    s = get_settings()
+    s.env, s.beta_login_numbers, s.beta_login_code = "prod", "+919811100000", "424242"
+    try:
+        cfg = (await c.get("/v1/config")).json()
+        assert cfg["auth_modes"] == ["beta"]
+        ok = await c.post("/v1/auth/dev", json={"phone": "9811100000", "code": "424242"})
+        assert ok.status_code == 200
+        wrong_code = await c.post("/v1/auth/dev", json={"phone": "9811100000", "code": "123456"})
+        not_listed = await c.post("/v1/auth/dev", json={"phone": "9811100001", "code": "424242"})
+        assert wrong_code.status_code == 401 and not_listed.status_code == 403
+    finally:
+        s.env, s.beta_login_numbers, s.beta_login_code = "test", "", None

@@ -260,7 +260,7 @@ private fun PhoneScreen(vm: OnboardingViewModel, state: OnboardingState) {
     StepLayout(
         stepIndex = 0,
         title = "What's your mobile number?",
-        body = "Use the number of the SIM in this phone. We'll text you a 6-digit code.",
+        body = if (state.betaOnly) "Use the number of the SIM in this phone." else "Use the number of the SIM in this phone. We'll text you a 6-digit code.",
         error = state.error,
         footer = {
             PrimaryButton("Send code", onClick = { vm.submitPhone(activity) }, loading = state.busy, enabled = state.phoneInput.count { it.isDigit() } >= 10)
@@ -285,8 +285,9 @@ private fun CodeScreen(vm: OnboardingViewModel, state: OnboardingState) {
     val activity = LocalContext.current.findActivity()
     StepLayout(
         stepIndex = 0,
-        title = "Enter the code",
-        body = "We sent a 6-digit code to ${state.phoneE164 ?: "your phone"}.",
+        title = if (state.betaOnly) "Enter your beta code" else "Enter the code",
+        body = if (state.betaOnly) "Pickup is in private beta. Enter the code you were given for ${state.phoneE164 ?: "this number"}."
+        else "We sent a 6-digit code to ${state.phoneE164 ?: "your phone"}.",
         error = state.error,
         footer = {
             PrimaryButton("Verify", onClick = vm::submitCode, loading = state.busy, enabled = state.code.length == 6)

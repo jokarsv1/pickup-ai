@@ -30,6 +30,10 @@ class Settings(BaseSettings):
     firebase_project_id: str | None = None  # verifies Firebase phone-auth ID tokens
     dev_auth_enabled: bool = True  # fixed OTP login for local development only
     dev_auth_code: str = "123456"
+    # Closed beta without Firebase SMS costs: these numbers may sign in with BETA_LOGIN_CODE,
+    # also in production. Comma-separated, e.g. "+919876543210,+919812345678".
+    beta_login_numbers: str = ""
+    beta_login_code: str | None = None
 
     # --- Push (Firebase Cloud Messaging HTTP v1) ---------------------------------
     fcm_service_account_file: str | None = None
@@ -71,6 +75,13 @@ class Settings(BaseSettings):
     s3_region: str | None = None
     s3_endpoint_url: str | None = None
 
+    # --- Legal pages (/legal/privacy, /legal/terms) ---------------------------------
+    legal_entity_name: str = "Pickup"
+    legal_address: str = "India"
+    legal_jurisdiction_city: str = "Bengaluru"
+    support_email: str = "support@example.com"
+    grievance_officer: str = "The Pickup team"
+
     # --- Product --------------------------------------------------------------
     trial_days: int = 7
     free_calls_per_month: int = 15
@@ -81,6 +92,16 @@ class Settings(BaseSettings):
     @property
     def is_dev(self) -> bool:
         return self.env in ("dev", "test")
+
+    @property
+    def beta_numbers(self) -> set[str]:
+        from app.phone import normalize
+
+        return {n for n in (normalize(x.strip()) for x in self.beta_login_numbers.split(",") if x.strip()) if n}
+
+    @property
+    def beta_login_enabled(self) -> bool:
+        return bool(self.beta_numbers and self.beta_login_code and len(self.beta_login_code) >= 6)
 
     @property
     def ai_enabled(self) -> bool:
