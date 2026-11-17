@@ -56,6 +56,7 @@ class MeUpdate(BaseModel):
 class DeviceIn(BaseModel):
     fcm_token: str = Field(..., max_length=512)  # FCM token on Android, APNs device token on iPhone
     platform: Literal["android", "ios"] = "android"
+    live_activity_start_token: str | None = Field(None, max_length=256)  # iPhone, iOS 17.2+
     app_version: str | None = None
     os_version: str | None = None
 
@@ -298,3 +299,7 @@ class NumberIn(BaseModel):
     number: str
     provider: Literal["exotel", "plivo", "twilio"]
     region: str = "IN"
+
+
+class LiveActivityTokenIn(BaseModel):
+    token: str = Field(..., min_length=8, max_length=256)

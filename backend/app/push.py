@@ -19,7 +19,7 @@ from starlette.concurrency import run_in_threadpool
 
 from app.config import get_settings
 from app.db import sessionmaker
-from app.models import Device
+from app.models import Call, Device
 
 FCM_SCOPE = "https://www.googleapis.com/auth/firebase.messaging"
 
@@ -126,10 +126,67 @@ class ApnsPush:
             return {"title": "Call forwarding works", "body": "Your assistant will answer the calls you decline or miss."}
         return None
 
-    async def send_to_user(self, user_id: str, data: dict[str, Any], *, collapse_key: str | None = None) -> int:
-        alert = self.alert_for(data)
-        if alert is None:
+    @staticmethod
+    def live_activity_payload(data: dict[str, Any], now: int) -> dict[str, Any] | None:
+        """The Live Activity push for an event: start when a call begins, update while it's live,
+        end when it's over. Keys match CallActivityAttributes in the iPhone app."""
+        kind = data.get("type")
+        if kind == "call.started":
+            title = str(data.get("caller_display") or "Unknown caller")
+            state = {"title": title, "reason": "Your assistant is answering", "lastLine": "", "state": "live"}
+            return {"aps": {"timestamp": now, "event": "start", "content-state": state, "attributes-type": "CallActivityAttributes",
+                            "attributes": {"callId": str(data.get("call_id"))}, "alert": {"title": "Pickup is answering a call", "body": title}}}
+        if kind == "call.live":
+            lines = data.get("lines") or []
+            last = lines[-1] if lines else {}
+            speaker = {"caller": "Caller", "assistant": "Assistant", "owner": "You"}.get(last.get("s", ""), "")
+            state = {"title": str(data.get("title") or "Call"), "reason": str(data.get("reason") or "Your assistant is talking to them"),
+                     "lastLine": f"{speaker}: {last.get('t', '')}" if speaker else "", "state": "live"}
+            return {"aps": {"timestamp": now, "event": "update", "content-state": state}}
+        if kind == "call.ended":
+            state = {"title": str(data.get("title") or "Call"), "reason": "Call ended. The summary is on its way.", "lastLine": "", "state": "ended"}
+            return {"aps": {"timestamp": now, "event": "end", "content-state": state, "dismissal-date": now + 15 * 60}}
+        return None
+
+    async def _post(self, token: str, body: dict[str, Any], headers: dict[str, str]) -> bool:
+        resp = await self._client.post(f"{self._host}/3/device/{token}", json=body, headers=headers)
+        if resp.status_code == 200:
+            return True
+        if resp.status_code == 410 or "BadDeviceToken" in resp.text or "Unregistered" in resp.text:
+            await forget_device(token)
+        else:
+            logger.warning(f"APNs send failed {resp.status_code}: {resp.text[:200]}")
+        return False
+
+    async def _live_activity(self, user_id: str, data: dict[str, Any]) -> int:
+        payload = self.live_activity_payload(data, int(time.time()))
+        call_id = data.get("call_id")
+        if payload is None or not call_id:
             return 0
+        async with sessionmaker()() as session:
+            if data.get("type") == "call.started":
+                tokens = (await session.scalars(select(Device.live_activity_start_token).where(
+                    Device.user_id == user_id, Device.platform == "ios", Device.live_activity_start_token.is_not(None)))).all()
+            else:
+                call = await session.get(Call, call_id)
+                tokens = [call.live_activity_token] if call and call.live_activity_token else []
+        headers = {"authorization": f"bearer {self._bearer()}", "apns-topic": f"{self._topic}.push-type.liveactivity",
+                   "apns-push-type": "liveactivity", "apns-priority": "10"}
+        sent = 0
+        for token in tokens:
+            resp = await self._client.post(f"{self._host}/3/device/{token}", json=payload, headers=headers)
+            if resp.status_code == 200:
+                sent += 1
+            else:
+                logger.warning(f"Live Activity push failed {resp.status_code}: {resp.text[:200]}")
+        return sent
+
+    async def send_to_user(self, user_id: str, data: dict[str, Any], *, collapse_key: str | None = None) -> int:
+        live = await self._live_activity(user_id, data)
+        alert = self.alert_for(data)
+        # A running Live Activity already shows the call; don't also stack alerts for it.
+        if alert is None or (live and data.get("type") in ("call.started", "call.live")):
+            return live
         async with sessionmaker()() as session:
             tokens = (await session.scalars(select(Device.fcm_token).where(Device.user_id == user_id, Device.platform == "ios"))).all()
         if not tokens:
@@ -138,15 +195,10 @@ class ApnsPush:
         headers = {"authorization": f"bearer {self._bearer()}", "apns-topic": self._topic, "apns-push-type": "alert", "apns-priority": "10"}
         if collapse_key:
             headers["apns-collapse-id"] = collapse_key[:64]
-        sent = 0
+        sent = live
         for token in tokens:
-            resp = await self._client.post(f"{self._host}/3/device/{token}", json=body, headers=headers)
-            if resp.status_code == 200:
+            if await self._post(token, body, headers):
                 sent += 1
-            elif resp.status_code == 410 or "BadDeviceToken" in resp.text or "Unregistered" in resp.text:
-                await forget_device(token)
-            else:
-                logger.warning(f"APNs send failed {resp.status_code}: {resp.text[:200]}")
         return sent
 
 

@@ -34,6 +34,8 @@ class Device(Base):
     platform: Mapped[str] = mapped_column(String(16), default="android")
     app_version: Mapped[str | None] = mapped_column(String(32))
     os_version: Mapped[str | None] = mapped_column(String(32))
+    # iPhone: token that lets the server start a Live Activity when a call begins (iOS 17.2+)
+    live_activity_start_token: Mapped[str | None] = mapped_column(String(256))
     updated_at: Mapped[datetime] = mapped_column(UTCDateTime(), default=utcnow, onupdate=utcnow)
 
 
@@ -160,6 +162,8 @@ class Call(Base):
     rating: Mapped[int | None] = mapped_column(Integer)
     feedback: Mapped[str | None] = mapped_column(Text)
     outbound_task_id: Mapped[str | None] = mapped_column(String(40))
+    # iPhone: token for updating this call's Live Activity (Lock Screen / Dynamic Island)
+    live_activity_token: Mapped[str | None] = mapped_column(String(256))
     read_at: Mapped[datetime | None] = mapped_column(UTCDateTime())
     deleted: Mapped[bool] = mapped_column(Boolean, default=False)
 

@@ -289,9 +289,10 @@ async def finish_call(call_id: str, end_reason: str, recording_key: str | None =
         if recording_key:
             call.recording_key = recording_key
         await session.commit()
-        payload = {"type": "call.ended", "call_id": call_id, "duration": call.duration_seconds, "end_reason": call.end_reason}
+        payload = {"type": "call.ended", "call_id": call_id, "title": display_title(call), "duration": call.duration_seconds, "end_reason": call.end_reason}
         user_id = call.user_id
-    await bus.publish(user_topic(user_id), payload)
+        push = call.mode != "demo"
+    await notify(user_id, payload, push=push, collapse_key=call_id)
     return call
 
 

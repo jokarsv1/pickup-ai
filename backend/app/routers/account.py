@@ -218,6 +218,8 @@ async def register_device(body: DeviceIn, session: Session, user: CurrentUser) -
         session.add(device)
     device.user_id = user.id
     device.platform = body.platform
+    if body.live_activity_start_token:
+        device.live_activity_start_token = body.live_activity_start_token
     device.app_version = body.app_version
     device.os_version = body.os_version
     await session.commit()

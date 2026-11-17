@@ -13,7 +13,7 @@ from app.entitlements import entitlement_for
 from app.events import bus, call_topic
 from app.models import Call, CallAction, TranscriptSegment
 from app.packs import CATEGORIES
-from app.schemas import ActionOut, ActionUpdate, CallDetailOut, CallPage, CallSummaryOut, FeedbackIn, SayIn, TranscriptLine
+from app.schemas import ActionOut, ActionUpdate, CallDetailOut, CallPage, CallSummaryOut, FeedbackIn, LiveActivityTokenIn, SayIn, TranscriptLine
 from app.services.calls import display_title
 from app.storage import delete_recording, recording_url_or_path
 
@@ -211,4 +211,12 @@ async def delete_call(call_id: str, session: Session, user: CurrentUser) -> None
     call.summary = None
     call.reason = None
     await session.execute(TranscriptSegment.__table__.delete().where(TranscriptSegment.call_id == call_id))
+    await session.commit()
+
+
+@router.post("/{call_id}/live-activity", status_code=204)
+async def live_activity_token(call_id: str, body: LiveActivityTokenIn, session: Session, user: CurrentUser) -> None:
+    """The iPhone app reports the push token of the Live Activity it shows for this call."""
+    call = await _own_call(session, user.id, call_id)
+    call.live_activity_token = body.token
     await session.commit()

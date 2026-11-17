@@ -112,3 +112,49 @@ async def test_apns_push_to_iphone(app_env):
     assert b"Rohit" in request.content and b"Job offer" in request.content
     # Transcript lines only refresh an open app: no alert.
     assert await apns.send_to_user(user_id, {"type": "transcript", "text": "hi"}) == 0
+
+
+async def test_live_activity_pushes(app_env):
+    """iPhones get a Live Activity: started by push when a call begins, updated, then ended."""
+    import json as jsonlib
+
+    import respx
+    from cryptography.hazmat.primitives import serialization
+    from cryptography.hazmat.primitives.asymmetric import ec
+    from httpx import Response
+
+    from app.db import sessionmaker
+    from app.models import Call, Device, User
+    from app.push import ApnsPush
+
+    pem = ec.generate_private_key(ec.SECP256R1()).private_bytes(serialization.Encoding.PEM, serialization.PrivateFormat.PKCS8, serialization.NoEncryption()).decode()
+    async with sessionmaker()() as session:
+        user = User(phone_e164="+919811100010")
+        session.add(user)
+        await session.flush()
+        session.add(Device(user_id=user.id, fcm_token="iphone-token", platform="ios", live_activity_start_token="start-token"))
+        call = Call(user_id=user.id, provider="exotel", state="live")
+        session.add(call)
+        await session.commit()
+        user_id, call_id = user.id, call.id
+
+    apns = ApnsPush(pem, "KEY123", "TEAM456", "ai.pickup.app")
+    with respx.mock(assert_all_called=False) as mock:
+        start = mock.post("https://api.push.apple.com/3/device/start-token").mock(return_value=Response(200))
+        alert = mock.post("https://api.push.apple.com/3/device/iphone-token").mock(return_value=Response(200))
+        await apns.send_to_user(user_id, {"type": "call.started", "call_id": call_id, "caller_display": "+91 98450 12345"})
+        body = jsonlib.loads(start.calls.last.request.content)
+        assert start.calls.last.request.headers["apns-topic"] == "ai.pickup.app.push-type.liveactivity"
+        assert body["aps"]["event"] == "start" and body["aps"]["attributes"] == {"callId": call_id}
+        assert not alert.called  # the Live Activity replaces the "answering a call" alert
+
+        # The phone reports the activity's own token; updates and the end go there.
+        async with sessionmaker()() as session:
+            (await session.get(Call, call_id)).live_activity_token = "activity-token"
+            await session.commit()
+        update = mock.post("https://api.push.apple.com/3/device/activity-token").mock(return_value=Response(200))
+        await apns.send_to_user(user_id, {"type": "call.live", "call_id": call_id, "title": "Ramesh · Blue Dart", "reason": "Parcel at the gate", "lines": [{"s": "caller", "t": "OTP chahiye"}]})
+        state = jsonlib.loads(update.calls.last.request.content)["aps"]["content-state"]
+        assert state == {"title": "Ramesh · Blue Dart", "reason": "Parcel at the gate", "lastLine": "Caller: OTP chahiye", "state": "live"}
+        await apns.send_to_user(user_id, {"type": "call.ended", "call_id": call_id, "title": "Ramesh · Blue Dart"})
+        assert jsonlib.loads(update.calls.last.request.content)["aps"]["event"] == "end"
