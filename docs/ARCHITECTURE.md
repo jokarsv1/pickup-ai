@@ -43,6 +43,35 @@ The backend calls the user's phone from their assistant number while the app is 
 verification window. The app declines it; if forwarding works, the call lands back on the assistant
 number and the line is marked verified. A real forwarded call also verifies the line.
 
+## How a call reaches the AI (iPhone)
+
+iPhone apps can't decline calls, so the person does: they tap Decline or let it ring, or turn on
+Silence Unknown Callers so unknown numbers never ring. The carrier forwards the call exactly as on
+Android, and everything after that is the same. Differences in the app:
+
+- **Forwarding setup:** iOS won't open the dialler with `*` or `#` codes, so each code has a Copy
+  button; the person pastes it on the Phone keypad. The verification call asks them to tap Decline.
+- **Push:** APNs straight from the server (`ApnsPush`, token-based `.p8` key), not Firebase.
+- **Live Activity:** the server starts a Lock Screen / Dynamic Island activity with a push-to-start
+  token when a call begins (iOS 17.2+), updates it with the reason and latest line, and ends it when
+  the call ends. Join and End are App Intents that run in the app and call the API.
+
+```
+call.started ──► APNs liveactivity "start" (device's push-to-start token)
+                   └─ iPhone shows the activity, reports its update token ─► POST /v1/calls/{id}/live-activity
+call.live    ──► APNs liveactivity "update" (that call's token)
+call.ended   ──► APNs liveactivity "end"
+summary      ──► APNs alert (tap opens the call)
+```
+
+## Beta distribution
+
+- **Android:** each build from `main` is shrunk (R8), smoke-tested on an emulator (sign-in against a
+  local server), then uploaded to the server (`PUT /admin/apk`) and served at `/download/android`.
+  The home page links it.
+- **iPhone:** TestFlight, uploaded by `.github/workflows/ios-testflight.yml` with an App Store
+  Connect API key; set `IOS_TESTFLIGHT_URL` to show the public link on the home page.
+
 ## Components
 
 | Path | What |
