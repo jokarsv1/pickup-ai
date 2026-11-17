@@ -15,6 +15,15 @@ After adding or changing one, tell Claude "redeploy", or run **Actions → Deplo
 
 ---
 
+## Do first (5 minutes)
+
+1. **Make the repository private.** github.com/jokarsv1/pickup-ai › **Settings** › **General** › scroll to
+   **Danger Zone** › **Change repository visibility** › **Make private** › confirm.
+   (It's public now: anyone can read the code and the Actions logs.) iPhone builds then use paid
+   macOS minutes: the free plan's 2,000 minutes cover about 20 iPhone builds a month.
+2. **Change the beta code.** GitHub secret `BETA_LOGIN_CODE` › **Update** › 6 random digits (not
+   123456), then tell Claude "redeploy". Anyone who knows your number could guess `123456`.
+
 ## Bucket 1: Install the app and sign in (10 minutes)
 
 1. On your Android phone, open **Chrome** and sign in at **github.com**.
@@ -112,6 +121,11 @@ Before launch, have a lawyer read https://pickup-ai-i6v0t.fly.dev/legal/privacy 
    14 days before going public. Your beta testers can be those testers.
 3. Tell Claude when the account is approved; Claude sets up the release build and lists the store
    forms to fill in.
+
+## Bucket 3b: iPhone (TestFlight)
+
+iPhone apps install from a TestFlight link instead of a file. It needs an Apple Developer account
+(US$99 a year). Click-by-click steps: [IPHONE.md](IPHONE.md).
 
 ## Bucket 4: Housekeeping (15 minutes, any time soon)
 
