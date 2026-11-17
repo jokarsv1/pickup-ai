@@ -10,6 +10,8 @@ from fastapi import APIRouter
 from fastapi.responses import HTMLResponse
 
 from app.config import get_settings
+from app.downloads import apk_info
+from app.downloads import info as info_for
 
 router = APIRouter(include_in_schema=False)
 
@@ -169,8 +171,6 @@ BUTTON = '<a class="btn" href="{href}">{label}</a>'
 
 
 def _downloads() -> str:
-    from app.downloads import apk_info
-
     parts = []
     info = apk_info()
     if info:
@@ -186,9 +186,69 @@ def _downloads() -> str:
             BUTTON.format(href=escape(testflight), label="Get it on iPhone (TestFlight)")
             + '<p class="muted">Install Apple\'s TestFlight app first, then open this link on your iPhone.</p>'
         )
+    elif info_for("ios"):
+        parts.append(
+            '<p><a href="/install/iphone">iPhone preview</a>: install it with your free Apple ID from a Mac or Windows '
+            "computer while the App Store version is on its way.</p>"
+        )
     if not parts:
         return '<p class="muted">The apps aren\'t published yet.</p>'
     return "\n".join(parts)
+
+
+IPHONE = """
+<h1>Pickup on iPhone (preview)</h1>
+<p>Until Pickup is on TestFlight, you can install this preview with your own Apple ID, free, using
+Sideloadly on a Mac or Windows computer. It takes about 10 minutes the first time.</p>
+<p class="muted">Version {version} · {mb:.0f} MB · iOS 17 or newer.</p>
+<p><strong>What's different in the preview:</strong> Apple doesn't allow notifications for apps installed this way,
+so Pickup updates while it's open, and it stops opening after 7 days until you install it again (keep the computer
+nearby, or turn on Sideloadly's auto-refresh). A free Apple ID can have 3 such apps at once.</p>
+
+<h2>1. On your computer</h2>
+<ol>
+<li>Download <a href="/download/ios">Pickup-{version}.ipa</a>.</li>
+<li>Install Sideloadly from <a href="https://sideloadly.io/">sideloadly.io</a>. On Windows, first install iTunes and
+iCloud from Apple's website (not the Microsoft Store versions), as Sideloadly's page explains.</li>
+<li>Connect your iPhone with a cable. On the iPhone, tap <strong>Trust</strong> and enter your passcode.</li>
+</ol>
+
+<h2>2. In Sideloadly</h2>
+<ol>
+<li>Drag <strong>Pickup-{version}.ipa</strong> onto the Sideloadly window.</li>
+<li>Pick your iPhone in the device list and type your Apple ID email.</li>
+<li>Click <strong>Start</strong>, then enter your Apple ID password (and the code Apple sends, if asked).</li>
+<li>Wait for <strong>Done</strong>.</li>
+</ol>
+
+<h2>3. On the iPhone</h2>
+<ol>
+<li>Settings › Privacy &amp; Security › <strong>Developer Mode</strong> › turn it on, and restart when asked.
+After the restart, tap <strong>Turn On</strong>.</li>
+<li>Settings › General › <strong>VPN &amp; Device Management</strong> › tap your Apple ID › <strong>Trust</strong>.</li>
+<li>Open Pickup and sign in with your invited number and beta code.</li>
+</ol>
+
+<h2>If something goes wrong</h2>
+<ul>
+<li><strong>"Maximum App ID limit"</strong> or <strong>"maximum number of installed apps"</strong>: Apple's limits for
+free accounts. Remove another sideloaded app, or wait a few days.</li>
+<li><strong>A problem with the widget</strong>: in Sideloadly's Advanced options, choose to remove app extensions, then
+Start again. Pickup works without its Lock Screen widget.</li>
+<li><strong>The app won't open after a week</strong>: repeat step 2. Your calls and settings are on the server, so
+nothing is lost.</li>
+</ul>
+<p><a href="/">Back</a></p>
+"""
+
+
+@router.get("/install/iphone", response_class=HTMLResponse)
+async def install_iphone() -> HTMLResponse:
+    current = info_for("ios")
+    if current is None:
+        return HTMLResponse(PAGE.format(title="iPhone", body='<p class="muted">The iPhone preview isn\'t published yet.</p>'), 404)
+    body = IPHONE.format(version=escape(str(current["version"])), mb=current["size"] / (1024 * 1024))
+    return HTMLResponse(PAGE.format(title="Pickup on iPhone", body=body))
 
 
 @router.get("/", response_class=HTMLResponse)

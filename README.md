@@ -8,7 +8,7 @@ as a competitor to Equal AI.
 - **Android app** (`android/`): Kotlin, Jetpack Compose, call screening, guided forwarding setup,
   live call notifications, assistant chat.
 - **iPhone app** (`ios/`): SwiftUI, the same screens; calls you decline or miss go to the assistant
-  (iPhone apps can't screen calls), push through APNs, installed from TestFlight.
+  (iPhone apps can't screen calls), push through APNs, installed from TestFlight (or a free sideloaded preview).
 - **Backend** (`backend/`): FastAPI, a Pipecat voice agent with Claude Haiku 5.5, Sarvam speech,
   Exotel/Plivo/Twilio telephony, FCM and APNs push. Runs on Fly.io.
 
@@ -20,7 +20,7 @@ where the voice agent answers. Details: [docs/ARCHITECTURE.md](docs/ARCHITECTURE
 
 ## Try it
 
-- **Download page:** https://pickup-ai-i6v0t.fly.dev (Android APK; iPhone TestFlight link once set up).
+- **Download page:** https://pickup-ai-i6v0t.fly.dev (Android APK; iPhone preview at /install/iphone; TestFlight link once set up).
 - **Your to-do list:** [docs/guides/CHECKLIST.md](docs/guides/CHECKLIST.md). iPhone: [docs/guides/IPHONE.md](docs/guides/IPHONE.md).
 - **Security review:** [docs/SECURITY.md](docs/SECURITY.md).
 

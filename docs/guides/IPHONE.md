@@ -9,6 +9,25 @@ Pickup from a link, without an App Store listing. It needs a paid Apple Develope
 | Apple Developer Program | US$99 a year (charged in rupees) | Sign-up 10 min; Apple's approval up to 2 days |
 | Everything else | Free | About 30 minutes, once |
 
+## Try it today, free (no Apple Developer account)
+
+Every push to `main` that changes the iPhone app also publishes an unsigned **preview** build.
+You install it with your own Apple ID using **Sideloadly** on a Mac or Windows computer.
+
+1. Open `https://<your-app>.fly.dev/install/iphone` (for you: https://pickup-ai-i6v0t.fly.dev/install/iphone).
+2. Follow the steps on that page: download the file, drag it into Sideloadly, enter your Apple ID,
+   then turn on Developer Mode and trust your Apple ID on the iPhone.
+
+The limits are Apple's, for free accounts:
+
+- **No notifications.** Pickup updates while it's open, but can't alert you about a call or show it
+  on the Lock Screen. That needs the paid account (Steps 1-6 below).
+- **It stops opening after 7 days.** Install it again from the computer (Sideloadly can do this by
+  itself when the iPhone is on the same Wi-Fi). Nothing is lost: your calls live on the server.
+- At most 3 apps installed this way per iPhone.
+
+Use the preview to try the app; use TestFlight (below) for daily use and for testers.
+
 ## How Pickup works on iPhone (different from Android)
 
 iPhone doesn't let apps decline calls for you, so Pickup can't screen calls automatically like on

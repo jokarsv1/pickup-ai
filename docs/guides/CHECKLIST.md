@@ -127,6 +127,9 @@ Before launch, have a lawyer read https://pickup-ai-i6v0t.fly.dev/legal/privacy 
 iPhone apps install from a TestFlight link instead of a file. It needs an Apple Developer account
 (US$99 a year). Click-by-click steps: [IPHONE.md](IPHONE.md).
 
+To try it first for free: https://pickup-ai-i6v0t.fly.dev/install/iphone (Sideloadly and your own
+Apple ID on a Mac or Windows computer; no notifications, re-install every 7 days).
+
 ## Bucket 4: Housekeeping (15 minutes, any time soon)
 
 The Fly token and Firebase key were shared in chat. Make fresh ones:

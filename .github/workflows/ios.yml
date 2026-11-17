@@ -1,7 +1,9 @@
 name: iOS
 
-# Builds the iPhone app for the simulator and runs its unit tests. macOS runners cost 10x
-# minutes on private repositories, so this runs only when ios/ changes (or by hand).
+# Builds the iPhone app for the simulator and runs its unit tests. On main it also builds an
+# unsigned iPhone preview (IPA) and puts it on the server for sideloading with a free Apple ID
+# (https://<app>.fly.dev/install/iphone). macOS runners cost 10x minutes on private
+# repositories, so this runs only when ios/ changes (or by hand).
 on:
   workflow_dispatch:
   push:
@@ -42,3 +44,68 @@ jobs:
           set -o pipefail
           xcodebuild test -project Pickup.xcodeproj -scheme Pickup -destination "id=$SIM" \
             -only-testing:PickupTests CODE_SIGNING_ALLOWED=NO -quiet 2>&1 | tail -80
+      - name: Build the unsigned iPhone preview (IPA)
+        if: github.ref == 'refs/heads/main'
+        working-directory: ios
+        run: |
+          set -o pipefail
+          xcodebuild build -project Pickup.xcodeproj -scheme Pickup -configuration Release \
+            -destination "generic/platform=iOS" -derivedDataPath "$RUNNER_TEMP/dd" \
+            CURRENT_PROJECT_VERSION="$GITHUB_RUN_NUMBER" \
+            CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO CODE_SIGN_IDENTITY="" -quiet 2>&1 | tail -60
+          app="$RUNNER_TEMP/dd/Build/Products/Release-iphoneos/Pickup.app"
+          ls "$app/PlugIns"
+          /usr/libexec/PlistBuddy -c "Print :CFBundleShortVersionString" -c "Print :CFBundleVersion" -c "Print :PickupAPIBaseURL" "$app/Info.plist"
+          mkdir -p "$RUNNER_TEMP/ipa/Payload"
+          cp -R "$app" "$RUNNER_TEMP/ipa/Payload/"
+          (cd "$RUNNER_TEMP/ipa" && zip -qry ../Pickup.ipa Payload)
+          ls -la "$RUNNER_TEMP/Pickup.ipa"
+      - uses: actions/upload-artifact@v4
+        if: github.ref == 'refs/heads/main'
+        with:
+          name: pickup-ios-preview-ipa
+          path: ${{ runner.temp }}/Pickup.ipa
+          retention-days: 14
+
+  publish:
+    # Puts the preview on the server, like the Android APK. Runs on Linux (cheap).
+    needs: build
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    concurrency: publish-ipa
+    steps:
+      - uses: actions/checkout@v4
+      - name: Check setup
+        id: setup
+        env:
+          RAW_TOKEN: ${{ secrets.FLY_API_TOKEN }}
+          APP_VAR: ${{ vars.FLY_APP_NAME }}
+        run: |
+          if [ -z "$RAW_TOKEN" ]; then echo "ready=false" >> "$GITHUB_OUTPUT"; exit 0; fi
+          token=$(printf '%s' "$RAW_TOKEN" | tr -d '\r\n' | sed -E 's/^[[:space:]]*(FlyV1)?[[:space:]]*/FlyV1 /')
+          echo "::add-mask::$token"
+          echo "FLY_API_TOKEN=$token" >> "$GITHUB_ENV"
+          echo "APP=${APP_VAR:-$(sed -nE 's/^app *= *"([^"]+)".*/\1/p' backend/fly.toml)}" >> "$GITHUB_ENV"
+          echo "ready=true" >> "$GITHUB_OUTPUT"
+      - uses: actions/download-artifact@v4
+        if: steps.setup.outputs.ready == 'true'
+        with:
+          name: pickup-ios-preview-ipa
+          path: ipa
+      - uses: superfly/flyctl-actions/setup-flyctl@master
+        if: steps.setup.outputs.ready == 'true'
+      - name: Upload the IPA to the server
+        if: steps.setup.outputs.ready == 'true'
+        run: |
+          admin=$(flyctl ssh console --app "$APP" -C "printenv ADMIN_TOKEN" 2>/dev/null | tr -d '\r' | grep -v '^$' | tail -n1)
+          [ -n "$admin" ] || { echo "::error::Couldn't read the server's admin token. Is the server deployed?"; exit 1; }
+          echo "::add-mask::$admin"
+          version="$(sed -nE 's/^ *MARKETING_VERSION: *"?([0-9.]+)"?.*/\1/p' ios/project.yml | head -n1)-${GITHUB_RUN_NUMBER}"
+          code=$(curl -sS -o resp.txt -w '%{http_code}' -X PUT "https://$APP.fly.dev/admin/ipa?version=$version" \
+            -H "X-Admin-Token: $admin" -H "Content-Type: application/octet-stream" --data-binary @ipa/Pickup.ipa)
+          cat resp.txt; echo
+          if [ "$code" = "404" ] || [ "$code" = "405" ]; then
+            echo "::warning::The server doesn't take iPhone builds yet. Deploy the backend, then re-run this job."; exit 0
+          fi
+          [ "$code" = "200" ] || { echo "::error::Upload failed ($code)"; exit 1; }
+          echo "Published iPhone preview $version: https://$APP.fly.dev/install/iphone"

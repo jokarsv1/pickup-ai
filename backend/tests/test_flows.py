@@ -329,5 +329,29 @@ async def test_apk_upload_and_download(app_env, tmp_path):
         dl = await c.get("/download/android")
         assert dl.status_code == 200 and dl.content == apk
         assert dl.headers["content-type"] == "application/vnd.android.package-archive"
+        bad = await c.put("/admin/apk?version=x", content=b"<html>" + b"x" * 4096, headers={"X-Admin-Token": "admin-secret-token"})
+        assert bad.status_code == 400  # not a zip file
+        assert (await c.get("/download/android")).content == apk  # the good one is untouched
+
+        # iPhone preview: no link or page until an IPA is published, then both.
+        assert "iPhone preview" not in home
+        assert (await c.get("/install/iphone")).status_code == 404
+        assert (await c.get("/download/ios")).status_code == 404
+        ipa = b"PK\x03\x04" + b"i" * 8192
+        assert (await c.put("/admin/ipa?version=0.1.0-3", content=ipa)).status_code == 403
+        up = await c.put("/admin/ipa?version=0.1.0-3", content=ipa, headers={"X-Admin-Token": "admin-secret-token"})
+        assert up.status_code == 200
+        assert 'href="/install/iphone"' in (await c.get("/")).text
+        page = (await c.get("/install/iphone")).text
+        assert "Sideloadly" in page and "Pickup-0.1.0-3.ipa" in page and "Developer Mode" in page
+        dl = await c.get("/download/ios")
+        assert dl.status_code == 200 and dl.content == ipa
+        assert "Pickup-0.1.0-3.ipa" in dl.headers["content-disposition"]
+
+        # A TestFlight link replaces the preview on the home page.
+        s.ios_testflight_url = "https://testflight.apple.com/join/AbCdEf12"
+        home = (await c.get("/")).text
+        assert "TestFlight" in home and "iPhone preview" not in home
     finally:
         s.downloads_dir, s.admin_token = saved
+        s.ios_testflight_url = None
