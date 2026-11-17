@@ -1,5 +1,7 @@
 # Start here: from code to a working app on your phone
 
+> **Already set up?** Your current to-do list is in [CHECKLIST.md](CHECKLIST.md).
+
 Everything below happens in your web browser: the GitHub website, Fly.io, Firebase, Anthropic and
 Sarvam. You don't need to install anything on your laptop or type terminal commands.
 

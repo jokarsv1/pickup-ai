@@ -73,4 +73,8 @@ jobs:
             echo '```'
             echo "Server health: \`$health\`"
           } >> "$GITHUB_STEP_SUMMARY"
+          echo "Voicebot: $base/exotel/$HOOK/voicebot"
+          echo "Passthru: $base/exotel/$HOOK/passthru"
+          echo "Connect:  $base/exotel/$HOOK/connect"
+          echo "Numbers in the pool: $pool"
           echo "Open this run's Summary page to see the links and numbers."

@@ -64,19 +64,19 @@ jobs:
           PLIVO_AUTH_TOKEN: ${{ secrets.PLIVO_AUTH_TOKEN }}
           TWILIO_AUTH_TOKEN: ${{ secrets.TWILIO_AUTH_TOKEN }}
           GOOGLE_PLAY_SERVICE_ACCOUNT_JSON: ${{ secrets.GOOGLE_PLAY_SERVICE_ACCOUNT_JSON }}
-          FIREBASE_PROJECT_ID: ${{ vars.FIREBASE_PROJECT_ID }}
-          TELEPHONY_PROVIDER: ${{ vars.TELEPHONY_PROVIDER }}
-          EXOTEL_ACCOUNT_SID: ${{ vars.EXOTEL_ACCOUNT_SID }}
-          EXOTEL_SUBDOMAIN: ${{ vars.EXOTEL_SUBDOMAIN }}
-          EXOTEL_OUTBOUND_FLOW_ID: ${{ vars.EXOTEL_OUTBOUND_FLOW_ID }}
-          PLIVO_AUTH_ID: ${{ vars.PLIVO_AUTH_ID }}
-          TWILIO_ACCOUNT_SID: ${{ vars.TWILIO_ACCOUNT_SID }}
-          LEGAL_ENTITY_NAME: ${{ vars.LEGAL_ENTITY_NAME }}
-          LEGAL_ADDRESS: ${{ vars.LEGAL_ADDRESS }}
-          LEGAL_JURISDICTION_CITY: ${{ vars.LEGAL_JURISDICTION_CITY }}
-          SUPPORT_EMAIL: ${{ vars.SUPPORT_EMAIL }}
-          GRIEVANCE_OFFICER: ${{ vars.GRIEVANCE_OFFICER }}
-          PUBLIC_BASE_URL: ${{ vars.PUBLIC_BASE_URL }}
+          FIREBASE_PROJECT_ID: ${{ secrets.FIREBASE_PROJECT_ID || vars.FIREBASE_PROJECT_ID }}
+          TELEPHONY_PROVIDER: ${{ secrets.TELEPHONY_PROVIDER || vars.TELEPHONY_PROVIDER }}
+          EXOTEL_ACCOUNT_SID: ${{ secrets.EXOTEL_ACCOUNT_SID || vars.EXOTEL_ACCOUNT_SID }}
+          EXOTEL_SUBDOMAIN: ${{ secrets.EXOTEL_SUBDOMAIN || vars.EXOTEL_SUBDOMAIN }}
+          EXOTEL_OUTBOUND_FLOW_ID: ${{ secrets.EXOTEL_OUTBOUND_FLOW_ID || vars.EXOTEL_OUTBOUND_FLOW_ID }}
+          PLIVO_AUTH_ID: ${{ secrets.PLIVO_AUTH_ID || vars.PLIVO_AUTH_ID }}
+          TWILIO_ACCOUNT_SID: ${{ secrets.TWILIO_ACCOUNT_SID || vars.TWILIO_ACCOUNT_SID }}
+          LEGAL_ENTITY_NAME: ${{ secrets.LEGAL_ENTITY_NAME || vars.LEGAL_ENTITY_NAME }}
+          LEGAL_ADDRESS: ${{ secrets.LEGAL_ADDRESS || vars.LEGAL_ADDRESS }}
+          LEGAL_JURISDICTION_CITY: ${{ secrets.LEGAL_JURISDICTION_CITY || vars.LEGAL_JURISDICTION_CITY }}
+          SUPPORT_EMAIL: ${{ secrets.SUPPORT_EMAIL || vars.SUPPORT_EMAIL }}
+          GRIEVANCE_OFFICER: ${{ secrets.GRIEVANCE_OFFICER || vars.GRIEVANCE_OFFICER }}
+          PUBLIC_BASE_URL: ${{ secrets.PUBLIC_BASE_URL || vars.PUBLIC_BASE_URL }}
         run: python3 .github/scripts/fly_secrets.py
       - name: Deploy
         if: steps.setup.outputs.ready == 'true'
