@@ -64,6 +64,10 @@ jobs:
           PLIVO_AUTH_TOKEN: ${{ secrets.PLIVO_AUTH_TOKEN }}
           TWILIO_AUTH_TOKEN: ${{ secrets.TWILIO_AUTH_TOKEN }}
           GOOGLE_PLAY_SERVICE_ACCOUNT_JSON: ${{ secrets.GOOGLE_PLAY_SERVICE_ACCOUNT_JSON }}
+          APNS_KEY_P8: ${{ secrets.APNS_KEY_P8 }}
+          APNS_KEY_ID: ${{ secrets.APNS_KEY_ID || vars.APNS_KEY_ID }}
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID || vars.APPLE_TEAM_ID }}
+          IOS_BUNDLE_ID: ${{ secrets.IOS_BUNDLE_ID || vars.IOS_BUNDLE_ID }}
           FIREBASE_PROJECT_ID: ${{ secrets.FIREBASE_PROJECT_ID || vars.FIREBASE_PROJECT_ID }}
           TELEPHONY_PROVIDER: ${{ secrets.TELEPHONY_PROVIDER || vars.TELEPHONY_PROVIDER }}
           EXOTEL_ACCOUNT_SID: ${{ secrets.EXOTEL_ACCOUNT_SID || vars.EXOTEL_ACCOUNT_SID }}

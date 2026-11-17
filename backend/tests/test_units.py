@@ -76,3 +76,39 @@ def test_voice_gender():
 
     assert voice_gender("ritu") == "female" and voice_gender("shubh") == "male"
     assert voice_gender("dev") == "male" and voice_gender(None) == "female" and voice_gender("unknown") == "female"
+
+
+async def test_apns_push_to_iphone(app_env):
+    """iPhones get a signed, visible alert collapsed per call; Android devices are left to FCM."""
+    import jwt as pyjwt
+    import respx
+    from cryptography.hazmat.primitives import serialization
+    from cryptography.hazmat.primitives.asymmetric import ec
+    from httpx import Response
+
+    from app.db import sessionmaker
+    from app.models import Device, User
+    from app.push import ApnsPush
+
+    key = ec.generate_private_key(ec.SECP256R1())
+    pem = key.private_bytes(serialization.Encoding.PEM, serialization.PrivateFormat.PKCS8, serialization.NoEncryption()).decode()
+    async with sessionmaker()() as session:
+        user = User(phone_e164="+919811100009")
+        session.add(user)
+        await session.flush()
+        session.add_all([Device(user_id=user.id, fcm_token="iphone-token", platform="ios"), Device(user_id=user.id, fcm_token="android-token", platform="android")])
+        await session.commit()
+        user_id = user.id
+
+    apns = ApnsPush(pem, "KEY123", "TEAM456", "ai.pickup.app")
+    with respx.mock(assert_all_called=True) as mock:
+        route = mock.post("https://api.push.apple.com/3/device/iphone-token").mock(return_value=Response(200))
+        sent = await apns.send_to_user(user_id, {"type": "summary", "call_id": "call_1", "title": "Rohit · TalentEdge", "summary": "Job offer"}, collapse_key="call_1")
+    assert sent == 1
+    request = route.calls.last.request
+    assert request.headers["apns-topic"] == "ai.pickup.app" and request.headers["apns-collapse-id"] == "call_1"
+    claims = pyjwt.decode(request.headers["authorization"].split()[1], key.public_key(), algorithms=["ES256"])
+    assert claims["iss"] == "TEAM456"
+    assert b"Rohit" in request.content and b"Job offer" in request.content
+    # Transcript lines only refresh an open app: no alert.
+    assert await apns.send_to_user(user_id, {"type": "transcript", "text": "hi"}) == 0

@@ -217,6 +217,7 @@ async def register_device(body: DeviceIn, session: Session, user: CurrentUser) -
         device = Device(user_id=user.id, fcm_token=body.fcm_token)
         session.add(device)
     device.user_id = user.id
+    device.platform = body.platform
     device.app_version = body.app_version
     device.os_version = body.os_version
     await session.commit()

@@ -1,8 +1,9 @@
-"""Push notifications through Firebase Cloud Messaging HTTP v1.
+"""Push notifications: Firebase Cloud Messaging (Android) and Apple Push Notification service (iPhone).
 
-All messages are data-only and high priority: the app builds the notification itself, so
+Android messages are data-only and high priority: the app builds the notification itself, so
 it can show the live transcript, smart replies and the Join button, and update one
-notification in place instead of stacking new ones.
+notification in place instead of stacking new ones. iPhones get visible alerts (iOS shows them
+while the app is closed), collapsed per call so a call updates one notification.
 """
 
 import asyncio
@@ -11,6 +12,7 @@ import time
 from typing import Any, Protocol
 
 import httpx
+import jwt
 from loguru import logger
 from sqlalchemy import delete, select
 from starlette.concurrency import run_in_threadpool
@@ -56,7 +58,7 @@ class FcmPush:
 
     async def send_to_user(self, user_id: str, data: dict[str, Any], *, collapse_key: str | None = None) -> int:
         async with sessionmaker()() as session:
-            tokens = (await session.scalars(select(Device.fcm_token).where(Device.user_id == user_id))).all()
+            tokens = (await session.scalars(select(Device.fcm_token).where(Device.user_id == user_id, Device.platform != "ios"))).all()
         if not tokens:
             return 0
         access_token = await self._token()
@@ -78,9 +80,90 @@ class FcmPush:
         return sent
 
     async def _forget(self, token: str) -> None:
+        await forget_device(token)
+
+
+async def forget_device(token: str) -> None:
+    """Drop a device the push service says no longer exists."""
+    async with sessionmaker()() as session:
+        await session.execute(delete(Device).where(Device.fcm_token == token))
+        await session.commit()
+
+
+class ApnsPush:
+    """Apple Push Notification service with token (.p8 key) authentication."""
+
+    def __init__(self, key_p8: str, key_id: str, team_id: str, topic: str, sandbox: bool = False) -> None:
+        self._key = key_p8.replace("\\n", "\n")
+        self._key_id = key_id
+        self._team_id = team_id
+        self._topic = topic
+        self._host = "https://api.sandbox.push.apple.com" if sandbox else "https://api.push.apple.com"
+        self._client = httpx.AsyncClient(http2=True, timeout=10)
+        self._jwt: str | None = None
+        self._jwt_at = 0.0
+
+    def _bearer(self) -> str:
+        # Apple wants the token refreshed between 20 and 60 minutes.
+        if self._jwt is None or time.time() - self._jwt_at > 40 * 60:
+            self._jwt_at = time.time()
+            self._jwt = jwt.encode({"iss": self._team_id, "iat": int(self._jwt_at)}, self._key, algorithm="ES256", headers={"kid": self._key_id})
+        return self._jwt
+
+    @staticmethod
+    def alert_for(data: dict[str, Any]) -> dict[str, str] | None:
+        """The visible notification for an event, or None for events that only refresh an open app."""
+        kind = data.get("type")
+        if kind == "call.started":
+            return {"title": "Pickup is answering a call", "body": str(data.get("caller_display") or "Unknown caller")}
+        if kind == "call.live" and data.get("reason"):
+            return {"title": f"Live: {data.get('title') or 'Call'}", "body": str(data["reason"])}
+        if kind == "summary" and data.get("summary"):
+            return {"title": str(data.get("title") or "Call summary"), "body": str(data["summary"])}
+        if kind == "takeover.ringing":
+            return {"title": "Your phone will ring", "body": "Answer it to talk to the caller."}
+        if kind == "line.verified":
+            return {"title": "Call forwarding works", "body": "Your assistant will answer the calls you decline or miss."}
+        return None
+
+    async def send_to_user(self, user_id: str, data: dict[str, Any], *, collapse_key: str | None = None) -> int:
+        alert = self.alert_for(data)
+        if alert is None:
+            return 0
         async with sessionmaker()() as session:
-            await session.execute(delete(Device).where(Device.fcm_token == token))
-            await session.commit()
+            tokens = (await session.scalars(select(Device.fcm_token).where(Device.user_id == user_id, Device.platform == "ios"))).all()
+        if not tokens:
+            return 0
+        body = {"aps": {"alert": alert, "sound": "default", "thread-id": str(data.get("call_id") or "pickup")}, "type": data.get("type"), "call_id": data.get("call_id")}
+        headers = {"authorization": f"bearer {self._bearer()}", "apns-topic": self._topic, "apns-push-type": "alert", "apns-priority": "10"}
+        if collapse_key:
+            headers["apns-collapse-id"] = collapse_key[:64]
+        sent = 0
+        for token in tokens:
+            resp = await self._client.post(f"{self._host}/3/device/{token}", json=body, headers=headers)
+            if resp.status_code == 200:
+                sent += 1
+            elif resp.status_code == 410 or "BadDeviceToken" in resp.text or "Unregistered" in resp.text:
+                await forget_device(token)
+            else:
+                logger.warning(f"APNs send failed {resp.status_code}: {resp.text[:200]}")
+        return sent
+
+
+class MultiPush:
+    """Sends through every configured service; each one picks its own devices."""
+
+    def __init__(self, senders: list[PushSender]) -> None:
+        self._senders = senders
+
+    async def send_to_user(self, user_id: str, data: dict[str, Any], *, collapse_key: str | None = None) -> int:
+        sent = 0
+        for sender in self._senders:
+            try:
+                sent += await sender.send_to_user(user_id, data, collapse_key=collapse_key)
+            except Exception as exc:
+                logger.warning(f"Push via {type(sender).__name__} failed: {exc}")
+        return sent
 
 
 class Throttle:
@@ -130,9 +213,16 @@ def get_push() -> PushSender:
         elif s.fcm_service_account_file:
             with open(s.fcm_service_account_file, encoding="utf-8") as fh:
                 info = json.load(fh)
-        _push = FcmPush(info) if info else NoopPush()
-        if info is None:
-            logger.info("FCM not configured: push notifications are off")
+        senders: list[PushSender] = []
+        if info:
+            senders.append(FcmPush(info))
+        else:
+            logger.info("FCM not configured: Android push notifications are off")
+        if s.apns_key_p8 and s.apns_key_id and s.apple_team_id:
+            senders.append(ApnsPush(s.apns_key_p8, s.apns_key_id, s.apple_team_id, s.ios_bundle_id, sandbox=s.apns_sandbox))
+        else:
+            logger.info("APNs not configured: iPhone push notifications are off")
+        _push = MultiPush(senders) if senders else NoopPush()
     return _push
 
 

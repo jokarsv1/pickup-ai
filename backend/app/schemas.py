@@ -54,7 +54,8 @@ class MeUpdate(BaseModel):
 
 
 class DeviceIn(BaseModel):
-    fcm_token: str = Field(..., max_length=512)
+    fcm_token: str = Field(..., max_length=512)  # FCM token on Android, APNs device token on iPhone
+    platform: Literal["android", "ios"] = "android"
     app_version: str | None = None
     os_version: str | None = None
 

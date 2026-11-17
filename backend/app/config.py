@@ -41,6 +41,12 @@ class Settings(BaseSettings):
     # --- Push (Firebase Cloud Messaging HTTP v1) ---------------------------------
     fcm_service_account_file: str | None = None
     fcm_service_account_json: str | None = None
+    # iPhone push (Apple Push Notification service): the .p8 key's contents, its key ID and team ID.
+    apns_key_p8: str | None = None
+    apns_key_id: str | None = None
+    apple_team_id: str | None = None
+    ios_bundle_id: str = "ai.pickup.app"
+    apns_sandbox: bool = False  # True only for builds run from Xcode; TestFlight uses production
 
     # --- AI -------------------------------------------------------------------
     anthropic_api_key: str | None = None
