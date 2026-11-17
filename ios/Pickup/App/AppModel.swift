@@ -58,7 +58,7 @@ final class AppModel {
     }
 
     func signOut() async {
-        if let refresh = Keychain.get("refresh") {
+        if let refresh = await API.shared.currentRefreshToken {
             let _: Empty? = try? await API.shared.post("/v1/auth/logout", RefreshBody(refreshToken: refresh))
         }
         await API.shared.signOutLocally()

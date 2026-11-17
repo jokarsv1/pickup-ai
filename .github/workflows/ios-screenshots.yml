@@ -26,6 +26,7 @@ jobs:
         env:
           ENV: dev
           DATABASE_URL: sqlite+aiosqlite:///./demo.db
+          PYTHONUNBUFFERED: "1"
         run: |
           pip install . >/dev/null
           python -m scripts.seed_demo --phone +919800000002 --pool +918047491800 +918047491801
@@ -57,8 +58,21 @@ jobs:
         run: |
           mkdir -p ../out/screens
           xcodebuild test -project Pickup.xcodeproj -scheme Pickup -destination "id=$SIM" \
-            -only-testing:PickupUITests CODE_SIGNING_ALLOWED=NO -quiet 2>&1 | tail -60 | tee ../out/tour.txt || true
+            -only-testing:PickupUITests -resultBundlePath "$RUNNER_TEMP/tour.xcresult" \
+            CODE_SIGNING_ALLOWED=NO -quiet 2>&1 | tail -40 | tee ../out/tour.txt || true
           ls -la ../out/screens
+          # The exact failing assertions, and the screenshots XCTest took when they failed.
+          xcrun xcresulttool get test-results summary --path "$RUNNER_TEMP/tour.xcresult" > ../out/summary.json || true
+          python3 -c "
+          import json
+          s = json.load(open('../out/summary.json'))
+          print('result:', s.get('result'), 'passed:', s.get('passedTests'), 'failed:', s.get('failedTests'))
+          for f in s.get('testFailures', []):
+              print('FAIL', f.get('testName'), '::', f.get('failureText'))
+          " | tee -a ../out/tour.txt || true
+          mkdir -p ../out/failures
+          xcrun xcresulttool export attachments --path "$RUNNER_TEMP/tour.xcresult" --output-path ../out/failures >/dev/null 2>&1 || true
+          ls ../out/failures | head -40
       - name: Publish to the screenshots-ios branch
         if: always()
         env:

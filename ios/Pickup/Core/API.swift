@@ -15,6 +15,10 @@ actor API {
     private let decoder: JSONDecoder
     private let encoder: JSONEncoder
     private var refreshing: Task<Bool, Never>?
+    /// The session tokens, kept in memory too so a Keychain that refuses writes (an unsigned
+    /// simulator build, a locked device right after boot) never loses a fresh sign-in.
+    private var accessToken: String?
+    private var refreshToken: String?
 
     init() {
         let config = URLSessionConfiguration.default
@@ -36,14 +40,30 @@ actor API {
         return (Bundle.main.object(forInfoDictionaryKey: "PickupAPIBaseURL") as? String) ?? "https://pickup-ai-i6v0t.fly.dev"
     }
 
-    var hasSession: Bool { Keychain.get("refresh") != nil }
+    var hasSession: Bool { currentRefreshToken != nil }
+
+    var currentRefreshToken: String? {
+        if refreshToken == nil { refreshToken = Keychain.get("refresh") }
+        return refreshToken
+    }
+
+    private var currentAccessToken: String? {
+        if accessToken == nil { accessToken = Keychain.get("access") }
+        return accessToken
+    }
 
     func saveTokens(_ tokens: Tokens) {
+        accessToken = tokens.accessToken
+        refreshToken = tokens.refreshToken
         Keychain.set("access", tokens.accessToken)
         Keychain.set("refresh", tokens.refreshToken)
     }
 
-    func signOutLocally() { Keychain.clear() }
+    func signOutLocally() {
+        accessToken = nil
+        refreshToken = nil
+        Keychain.clear()
+    }
 
     // MARK: Requests
 
@@ -76,7 +96,7 @@ actor API {
             request.httpBody = body
             request.setValue("application/json", forHTTPHeaderField: "Content-Type")
         }
-        if auth, let token = Keychain.get("access") {
+        if auth, let token = currentAccessToken {
             request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
         }
         let data: Data
@@ -104,7 +124,7 @@ actor API {
     private func refreshTokens() async -> Bool {
         if let refreshing { return await refreshing.value }
         let task = Task<Bool, Never> {
-            guard let refresh = Keychain.get("refresh") else { return false }
+            guard let refresh = self.currentRefreshToken else { return false }
             do {
                 let body = try self.encoder.encode(RefreshBody(refreshToken: refresh))
                 let tokens: Tokens = try await self.send("POST", "/v1/auth/refresh", body: body, auth: false, retry: false)
