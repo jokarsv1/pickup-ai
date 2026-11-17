@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">Pickup</string>
+    <string name="tile_label">Call assistant</string>
+    <string name="channel_live">Live calls</string>
+    <string name="channel_live_desc">What your assistant is hearing right now, with quick replies.</string>
+    <string name="channel_summary">Call summaries</string>
+    <string name="channel_summary_desc">Who called, why, and what to do next.</string>
+    <string name="channel_setup">Setup and account</string>
+    <string name="channel_setup_desc">Forwarding checks and account updates.</string>
+</resources>

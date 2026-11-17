@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <color name="pickup_background">#FFF8F6F1</color>
+    <color name="pickup_primary">#FF2747C9</color>
+    <color name="ic_launcher_background">#FF2747C9</color>
+</resources>
