@@ -36,7 +36,7 @@ from app.packs import CATEGORIES
 from app.services import calls as call_service
 from app.storage import pcm_to_wav, save_recording
 from app.telephony.registry import get_provider
-from app.voice.services import make_llm, make_serializer, make_stt, make_tts, missing_keys
+from app.voice.services import make_llm, make_serializer, make_stt, make_tts, missing_keys, voice_gender
 
 SAMPLE_RATE = 8000  # narrowband telephone audio
 _background: set[asyncio.Task] = set()
@@ -93,6 +93,7 @@ async def load_context(call_id: str) -> tuple[Call, User, Line | None, CallConte
         record_calls=prefs.record_calls,
         outbound_goal=task.goal if task else None,
         outbound_to_name=task.to_name if task else None,
+        assistant_gender=voice_gender(prefs.voice),
     )
     return call, user, line, ctx, prefs, ent.live_controls
 

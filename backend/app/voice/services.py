@@ -18,6 +18,11 @@ SARVAM_VOICES = {
 }
 
 
+def voice_gender(voice: str | None) -> str:
+    """Grammatical gender the assistant should use for itself, from the chosen voice."""
+    return "male" if SARVAM_VOICES.get(voice or "", "").endswith("(male)") else "female"
+
+
 class VoiceStackUnavailable(RuntimeError):
     pass
 

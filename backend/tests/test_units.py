@@ -51,7 +51,13 @@ def test_prompt_contains_instructions_and_rules():
     assert "Leave parcels with the guard." in prompt
     assert "Never claim to be human" in prompt
     assert "connect_owner" in prompt
-    assert "नमस्ते" in greeting_for(ctx)
+    greeting = greeting_for(ctx)
+    assert "नमस्ते" in greeting and "Asha की AI assistant" in greeting
+    assert "Asha से बात नहीं हो पाएगी" in greeting and "ले पा रहे" not in greeting  # no guessed gender for the owner
+    assert "मैं बता सकती हूँ" in prompt
+    ctx.assistant_gender = "male"
+    assert "Asha का AI assistant" in greeting_for(ctx)
+    assert "मैं बता सकता हूँ" in voice_system_prompt(ctx)
     assert "recorded" in greeting_for(CallContext("screen", "Asha", "Pickup", ["en-IN"], None))
 
 
@@ -63,3 +69,10 @@ async def test_throttle_coalesces_bursts():
     assert [d["n"] for _, d in push.sent] == [0]
     await asyncio.sleep(0.3)
     assert [d["n"] for _, d in push.sent] == [0, 4]
+
+
+def test_voice_gender():
+    from app.voice.services import voice_gender
+
+    assert voice_gender("ritu") == "female" and voice_gender("shubh") == "male"
+    assert voice_gender("dev") == "male" and voice_gender(None) == "female" and voice_gender("unknown") == "female"

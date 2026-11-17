@@ -44,6 +44,7 @@ class CallContext:
     outbound_goal: str | None = None
     outbound_to_name: str | None = None
     now: datetime | None = None
+    assistant_gender: str = "female"  # grammatical gender of the chosen voice: female | male
 
 
 def first_name(name: str) -> str:
@@ -63,7 +64,8 @@ def greeting_for(ctx: CallContext, custom: str | None = None) -> str:
         return f"Hello, this is {ctx.assistant_name}, {owner}'s AI assistant, calling on {owner}'s behalf.{recorded}{who}"
     if ctx.languages and ctx.languages[0] == "hi-IN":
         return (
-            f"नमस्ते, मैं {ctx.assistant_name} हूँ, {owner} की AI assistant. {owner} अभी call नहीं ले पा रहे."
+            f"नमस्ते, मैं {ctx.assistant_name} हूँ, {owner} {'का' if ctx.assistant_gender == 'male' else 'की'} AI assistant."
+            f" अभी {owner} से बात नहीं हो पाएगी."
             f"{' यह call record हो सकती है.' if ctx.record_calls else ''} आप कौन बोल रहे हैं और किस बारे में call किया?"
         )
     return f"Hi, this is {ctx.assistant_name}, {owner}'s AI assistant. {owner} can't take your call right now.{recorded} Who's calling, and what's it about?"
@@ -75,11 +77,19 @@ def voice_system_prompt(ctx: CallContext) -> str:
     langs = ", ".join(LANGUAGE_NAMES.get(code, code) for code in ctx.languages) or "Indian English"
     when = (ctx.now or datetime.now(ZoneInfo("Asia/Kolkata"))).strftime("%A %d %B %Y, %H:%M")
 
+    male = ctx.assistant_gender == "male"
+    voice_desc = "a man's" if male else "a woman's"
+    self_example = "मैं बता सकता हूँ" if male else "मैं बता सकती हूँ"
+    deliver_example = "दूँगा" if male else "दूँगी"
+
     style = f"""How to speak (you are on a live phone call; everything you write is spoken aloud):
 - One or two short sentences per turn. Never lists, markdown, emojis or symbols.
 - Answer in the caller's language. {owner_first} speaks {langs}. If the caller mixes Hindi and English, mix the same way. Write Hindi words in Devanagari and English words in Latin script.
 - Read phone numbers, amounts and codes digit by digit.
 - Keep track of what you already know. Never ask for something the caller already told you.
+- Ask only for what {owner_first} needs to act on the call. Skip details that don't change that, like what's inside a parcel.
+- Your voice is {voice_desc}. In Hindi and other gendered languages, speak about yourself that way ("{self_example}").
+- You don't know {owner_first}'s gender. In Hindi, use phrasing that doesn't need it ("अभी {owner_first} से बात नहीं हो पाएगी", "{owner_first} तक message पहुँचा {deliver_example}") instead of guessing a verb ending.
 - If you didn't catch something, ask once, briefly.
 - You are an AI assistant. Never claim to be human; if asked, say so plainly.
 - Never share {owner_first}'s personal details: address, location, other numbers, schedule, bank details or OTPs, unless {owner_first} relays them to you during this call.
