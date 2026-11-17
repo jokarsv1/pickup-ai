@@ -43,7 +43,6 @@ targets:
         PickupAPIBaseURL: $(PICKUP_API_BASE_URL)
         NSAppTransportSecurity:
           NSAllowsLocalNetworking: true
-        NSContactsUsageDescription: Pickup tells your assistant the names of people in your contacts, so it can greet them by name.
   PickupTests:
     type: bundle.unit-test
     platform: iOS
