@@ -1,0 +1,55 @@
+name: Uptime
+
+# Checks the server every 30 minutes. If it's down, opens a GitHub issue (GitHub emails you);
+# when it's back, comments and closes the issue. Costs a few seconds of Actions time per check.
+on:
+  schedule:
+    - cron: "*/30 * * * *"
+  workflow_dispatch:
+
+permissions:
+  issues: write
+
+concurrency: uptime
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - name: Check the server
+        id: check
+        env:
+          APP_VAR: ${{ vars.FLY_APP_NAME }}
+        run: |
+          app="${APP_VAR:-$(sed -nE 's/^app *= *"([^"]+)".*/\1/p' backend/fly.toml)}"
+          url="https://$app.fly.dev/healthz"
+          echo "url=$url" >> "$GITHUB_OUTPUT"
+          ok=false
+          for i in 1 2 3; do
+            if curl -fsS --max-time 15 "$url" >/dev/null; then ok=true; break; fi
+            sleep 20
+          done
+          echo "ok=$ok" >> "$GITHUB_OUTPUT"
+          echo "Server up: $ok"
+      - name: Open or close the outage issue
+        uses: actions/github-script@v7
+        env:
+          OK: ${{ steps.check.outputs.ok }}
+          URL: ${{ steps.check.outputs.url }}
+        with:
+          script: |
+            const title = "Pickup server is down";
+            const { data: open } = await github.rest.issues.listForRepo({ ...context.repo, state: "open", labels: "outage" });
+            const issue = open.find(i => i.title === title);
+            const up = process.env.OK === "true";
+            if (!up && !issue) {
+              await github.rest.issues.create({ ...context.repo, title, labels: ["outage"],
+                body: `${process.env.URL} didn't answer three times in a row (${new Date().toISOString()}).\n\n` +
+                      "Check the Fly dashboard › your app › Monitoring › Logs, or ask Claude to look. " +
+                      "This issue closes by itself when the server is back." });
+            } else if (up && issue) {
+              await github.rest.issues.createComment({ ...context.repo, issue_number: issue.number, body: `Back up at ${new Date().toISOString()}.` });
+              await github.rest.issues.update({ ...context.repo, issue_number: issue.number, state: "closed" });
+            }
