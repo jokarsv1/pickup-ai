@@ -1,8 +1,10 @@
 from collections.abc import AsyncIterator
 from datetime import UTC, datetime
 
+from sqlalchemy import DateTime
 from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession, async_sessionmaker, create_async_engine
 from sqlalchemy.orm import DeclarativeBase
+from sqlalchemy.types import TypeDecorator
 
 from app.config import get_settings
 
@@ -13,6 +15,30 @@ class Base(DeclarativeBase):
 
 def utcnow() -> datetime:
     return datetime.now(UTC)
+
+
+class UTCDateTime(TypeDecorator):
+    """A timestamp that always comes back time-zone aware, in UTC.
+
+    SQLite stores no time zone, so without this the API sent times like
+    "2026-11-17T16:19:12" and the app couldn't place them in the user's day.
+    """
+
+    impl = DateTime
+    cache_ok = True
+
+    def __init__(self) -> None:
+        super().__init__(timezone=True)
+
+    def process_bind_param(self, value: datetime | None, dialect) -> datetime | None:
+        if value is not None and value.tzinfo is None:
+            value = value.replace(tzinfo=UTC)
+        return value
+
+    def process_result_value(self, value: datetime | None, dialect) -> datetime | None:
+        if value is not None and value.tzinfo is None:
+            value = value.replace(tzinfo=UTC)
+        return value
 
 
 _engine: AsyncEngine | None = None

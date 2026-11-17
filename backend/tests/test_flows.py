@@ -139,6 +139,9 @@ async def test_live_transcript_intent_and_summary(app_env):
     assert [t["speaker"] for t in detail["transcript"]] == ["assistant", "caller"]
     page = (await c.get("/v1/calls", params={"q": "blue dart"}, headers=headers)).json()
     assert len(page["items"]) == 1 and page["items"][0]["category_label"] == "Delivery or courier"
+    # Times must carry a zone (SQLite drops it); the app can't place a bare time in the user's day.
+    started = page["items"][0]["started_at"]
+    assert started.endswith("Z") or started.endswith("+00:00"), started
     assert (await c.post(f"/v1/calls/{call_id}/say", json={"text": "hi"}, headers=headers)).status_code == 409
     await c.delete(f"/v1/calls/{call_id}", headers=headers)
     assert (await c.get(f"/v1/calls/{call_id}", headers=headers)).status_code == 404

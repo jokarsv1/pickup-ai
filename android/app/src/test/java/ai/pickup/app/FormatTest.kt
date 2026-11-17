@@ -21,6 +21,7 @@ class FormatTest {
         val zone = ZoneId.of("Asia/Kolkata")
         val today = LocalDate.of(2026, 11, 17)
         assertEquals("Today", Format.dayLabel("2026-11-17T09:00:00+05:30", today, zone))
+        assertEquals("Today", Format.dayLabel("2026-11-17T04:28:00.123456", today, zone)) // no zone: UTC
         assertEquals("Yesterday", Format.dayLabel("2026-11-16T23:00:00+05:30", today, zone))
         assertEquals("Sun, 15 Nov", Format.dayLabel("2026-11-15T10:00:00+05:30", today, zone))
     }

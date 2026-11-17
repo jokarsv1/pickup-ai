@@ -3,8 +3,10 @@ package ai.pickup.app.util
 import java.time.Duration
 import java.time.Instant
 import java.time.LocalDate
+import java.time.LocalDateTime
 import java.time.OffsetDateTime
 import java.time.ZoneId
+import java.time.ZoneOffset
 import java.time.format.DateTimeFormatter
 import java.util.Locale
 
@@ -13,7 +15,11 @@ object Format {
     private val dayMonth = DateTimeFormatter.ofPattern("EEE, d MMM", Locale.ENGLISH)
     private val full = DateTimeFormatter.ofPattern("d MMM, h:mm a", Locale.ENGLISH)
 
-    fun parse(iso: String?): OffsetDateTime? = iso?.let { runCatching { OffsetDateTime.parse(it) }.getOrNull() }
+    /** Server times are UTC; a time without a zone (older servers on SQLite) is read as UTC too. */
+    fun parse(iso: String?): OffsetDateTime? = iso?.let {
+        runCatching { OffsetDateTime.parse(it) }.getOrNull()
+            ?: runCatching { LocalDateTime.parse(it).atOffset(ZoneOffset.UTC) }.getOrNull()
+    }
 
     fun epochMillis(iso: String?): Long? = parse(iso)?.toInstant()?.toEpochMilli()
 

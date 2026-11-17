@@ -36,8 +36,9 @@ class ScreenshotTour {
         File(dir, "$name.png").outputStream().use { bitmap.compress(Bitmap.CompressFormat.PNG, 100, it) }
     }
 
+    // Ignores case: section headers are drawn in capitals.
     private fun waitFor(text: String, timeoutMs: Long = 20_000) {
-        rule.waitUntil(timeoutMs) { rule.onAllNodesWithText(text, substring = true).fetchSemanticsNodes().isNotEmpty() }
+        rule.waitUntil(timeoutMs) { rule.onAllNodesWithText(text, substring = true, ignoreCase = true).fetchSemanticsNodes().isNotEmpty() }
     }
 
     private fun tap(text: String) {

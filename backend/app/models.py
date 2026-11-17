@@ -6,7 +6,7 @@ from datetime import datetime
 from sqlalchemy import JSON, Boolean, DateTime, ForeignKey, Index, Integer, String, Text, UniqueConstraint
 from sqlalchemy.orm import Mapped, mapped_column
 
-from app.db import Base, utcnow
+from app.db import Base, UTCDateTime, utcnow
 
 
 def new_id(prefix: str) -> str:
@@ -19,11 +19,11 @@ class User(Base):
     phone_e164: Mapped[str] = mapped_column(String(20), unique=True, index=True)
     name: Mapped[str | None] = mapped_column(String(80))
     language: Mapped[str] = mapped_column(String(12), default="en-IN")
-    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
-    trial_ends_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    created_at: Mapped[datetime] = mapped_column(UTCDateTime(), default=utcnow)
+    trial_ends_at: Mapped[datetime | None] = mapped_column(UTCDateTime())
     plan: Mapped[str] = mapped_column(String(16), default="free")  # free | pro
-    plan_expires_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
-    onboarding_completed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    plan_expires_at: Mapped[datetime | None] = mapped_column(UTCDateTime())
+    onboarding_completed_at: Mapped[datetime | None] = mapped_column(UTCDateTime())
 
 
 class Device(Base):
@@ -34,14 +34,14 @@ class Device(Base):
     platform: Mapped[str] = mapped_column(String(16), default="android")
     app_version: Mapped[str | None] = mapped_column(String(32))
     os_version: Mapped[str | None] = mapped_column(String(32))
-    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow, onupdate=utcnow)
+    updated_at: Mapped[datetime] = mapped_column(UTCDateTime(), default=utcnow, onupdate=utcnow)
 
 
 class RefreshToken(Base):
     __tablename__ = "refresh_tokens"
     id: Mapped[str] = mapped_column(String(64), primary_key=True)
     user_id: Mapped[str] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), index=True)
-    expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+    expires_at: Mapped[datetime] = mapped_column(UTCDateTime())
     revoked: Mapped[bool] = mapped_column(Boolean, default=False)
 
 
@@ -54,8 +54,8 @@ class NumberPoolEntry(Base):
     region: Mapped[str] = mapped_column(String(8), default="IN")
     state: Mapped[str] = mapped_column(String(16), default="free")  # free | assigned | quarantine
     user_id: Mapped[str | None] = mapped_column(String(40), index=True)
-    assigned_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
-    quarantine_until: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    assigned_at: Mapped[datetime | None] = mapped_column(UTCDateTime())
+    quarantine_until: Mapped[datetime | None] = mapped_column(UTCDateTime())
 
 
 class Line(Base):
@@ -70,10 +70,10 @@ class Line(Base):
     assistant_number: Mapped[str] = mapped_column(String(20), index=True)
     status: Mapped[str] = mapped_column(String(16), default="pending")  # pending | verified | broken | released
     ring_seconds: Mapped[int] = mapped_column(Integer, default=20)
-    verification_pending_until: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
-    verified_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
-    last_forwarded_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
-    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
+    verification_pending_until: Mapped[datetime | None] = mapped_column(UTCDateTime())
+    verified_at: Mapped[datetime | None] = mapped_column(UTCDateTime())
+    last_forwarded_at: Mapped[datetime | None] = mapped_column(UTCDateTime())
+    created_at: Mapped[datetime] = mapped_column(UTCDateTime(), default=utcnow)
 
 
 class AssistantSettings(Base):
@@ -87,13 +87,13 @@ class AssistantSettings(Base):
     pack_ids: Mapped[list] = mapped_column(JSON, default=lambda: ["deliveries", "sales_calls", "banks"])
     screening_mode: Mapped[str] = mapped_column(String(20), default="assistant_first")  # assistant_first | ring_first | off
     screen_contacts: Mapped[bool] = mapped_column(Boolean, default=False)
-    snooze_until: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    snooze_until: Mapped[datetime | None] = mapped_column(UTCDateTime())
     record_calls: Mapped[bool] = mapped_column(Boolean, default=True)
     retention_days: Mapped[int] = mapped_column(Integer, default=90)
     urgent_passthrough: Mapped[bool] = mapped_column(Boolean, default=True)
     share_location_with_deliveries: Mapped[bool] = mapped_column(Boolean, default=False)
     delivery_note: Mapped[str | None] = mapped_column(Text)
-    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow, onupdate=utcnow)
+    updated_at: Mapped[datetime] = mapped_column(UTCDateTime(), default=utcnow, onupdate=utcnow)
 
 
 class Rule(Base):
@@ -104,7 +104,7 @@ class Rule(Base):
     match_value: Mapped[str] = mapped_column(String(64))
     action: Mapped[str] = mapped_column(String(16))  # handle | ring_me | decline | connect
     note: Mapped[str | None] = mapped_column(String(200))
-    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
+    created_at: Mapped[datetime] = mapped_column(UTCDateTime(), default=utcnow)
 
 
 class ContactEntry(Base):
@@ -124,7 +124,7 @@ class ScreeningHint(Base):
     user_id: Mapped[str] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), index=True)
     caller_number: Mapped[str] = mapped_column(String(20))
     decision: Mapped[str] = mapped_column(String(16))
-    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow, index=True)
+    created_at: Mapped[datetime] = mapped_column(UTCDateTime(), default=utcnow, index=True)
     consumed: Mapped[bool] = mapped_column(Boolean, default=False)
 
 
@@ -151,16 +151,16 @@ class Call(Base):
     state: Mapped[str] = mapped_column(String(16), default="ringing")
     takeover_requested: Mapped[bool] = mapped_column(Boolean, default=False)
     end_reason: Mapped[str | None] = mapped_column(String(40))
-    started_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow, index=True)
-    answered_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
-    taken_over_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
-    ended_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    started_at: Mapped[datetime] = mapped_column(UTCDateTime(), default=utcnow, index=True)
+    answered_at: Mapped[datetime | None] = mapped_column(UTCDateTime())
+    taken_over_at: Mapped[datetime | None] = mapped_column(UTCDateTime())
+    ended_at: Mapped[datetime | None] = mapped_column(UTCDateTime())
     duration_seconds: Mapped[int | None] = mapped_column(Integer)
     recording_key: Mapped[str | None] = mapped_column(String(200))
     rating: Mapped[int | None] = mapped_column(Integer)
     feedback: Mapped[str | None] = mapped_column(Text)
     outbound_task_id: Mapped[str | None] = mapped_column(String(40))
-    read_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    read_at: Mapped[datetime | None] = mapped_column(UTCDateTime())
     deleted: Mapped[bool] = mapped_column(Boolean, default=False)
 
     __table_args__ = (Index("ix_calls_user_started", "user_id", "started_at"),)
@@ -173,7 +173,7 @@ class TranscriptSegment(Base):
     seq: Mapped[int] = mapped_column(Integer)
     speaker: Mapped[str] = mapped_column(String(12))  # caller | assistant | owner | system
     text: Mapped[str] = mapped_column(Text)
-    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
+    created_at: Mapped[datetime] = mapped_column(UTCDateTime(), default=utcnow)
 
 
 class CallAction(Base):
@@ -194,12 +194,12 @@ class OutboundTask(Base):
     to_number: Mapped[str] = mapped_column(String(20))
     to_name: Mapped[str | None] = mapped_column(String(120))
     goal: Mapped[str] = mapped_column(Text)
-    scheduled_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), index=True)
+    scheduled_at: Mapped[datetime] = mapped_column(UTCDateTime(), index=True)
     state: Mapped[str] = mapped_column(String(16), default="scheduled")  # scheduled | dialing | done | failed | cancelled
     attempts: Mapped[int] = mapped_column(Integer, default=0)
     call_id: Mapped[str | None] = mapped_column(String(40))
     result_summary: Mapped[str | None] = mapped_column(Text)
-    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
+    created_at: Mapped[datetime] = mapped_column(UTCDateTime(), default=utcnow)
 
 
 class ChatMessage(Base):
@@ -210,7 +210,7 @@ class ChatMessage(Base):
     text: Mapped[str] = mapped_column(Text, default="")
     content: Mapped[list] = mapped_column(JSON, default=list)  # full API content blocks, replayed verbatim
     client_actions: Mapped[list] = mapped_column(JSON, default=list)
-    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
+    created_at: Mapped[datetime] = mapped_column(UTCDateTime(), default=utcnow)
 
 
 class NumberReputation(Base):
@@ -222,7 +222,7 @@ class NumberReputation(Base):
     spam_calls: Mapped[int] = mapped_column(Integer, default=0)
     category_counts: Mapped[dict] = mapped_column(JSON, default=dict)
     top_org: Mapped[str | None] = mapped_column(String(120))
-    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow, onupdate=utcnow)
+    updated_at: Mapped[datetime] = mapped_column(UTCDateTime(), default=utcnow, onupdate=utcnow)
 
 
 class Purchase(Base):
@@ -232,6 +232,6 @@ class Purchase(Base):
     product_id: Mapped[str] = mapped_column(String(80))
     purchase_token: Mapped[str] = mapped_column(String(512), unique=True)
     state: Mapped[str] = mapped_column(String(24))
-    expires_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    expires_at: Mapped[datetime | None] = mapped_column(UTCDateTime())
     raw: Mapped[dict] = mapped_column(JSON, default=dict)
-    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
+    created_at: Mapped[datetime] = mapped_column(UTCDateTime(), default=utcnow)
