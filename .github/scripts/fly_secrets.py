@@ -16,8 +16,9 @@ listed = subprocess.run(["flyctl", "secrets", "list", "--app", app, "--json"], c
 existing = {item.get("Name") or item.get("name") for item in json.loads(listed.stdout or "[]")}
 
 values: dict[str, str] = {}
+rotate_webhook = os.environ.get("ROTATE_WEBHOOK_SECRET") == "true"
 for name in ("JWT_SECRET", "ADMIN_TOKEN", "TELEPHONY_WEBHOOK_SECRET"):
-    if name not in existing:
+    if name not in existing or (rotate_webhook and name == "TELEPHONY_WEBHOOK_SECRET"):
         values[name] = secrets.token_urlsafe(48)
 
 passthrough = [

@@ -4,6 +4,11 @@ name: Deploy backend (Fly.io)
 # The app name comes from backend/fly.toml unless you set the FLY_APP_NAME variable.
 on:
   workflow_dispatch:
+    inputs:
+      rotate_webhook_secret:
+        description: "Generate a new telephony webhook secret (then update the links in Exotel)"
+        type: boolean
+        default: false
   push:
     branches: [main]
     paths: ["backend/**", ".github/workflows/deploy.yml", ".github/scripts/fly_secrets.py"]
@@ -81,6 +86,7 @@ jobs:
           SUPPORT_EMAIL: ${{ secrets.SUPPORT_EMAIL || vars.SUPPORT_EMAIL }}
           GRIEVANCE_OFFICER: ${{ secrets.GRIEVANCE_OFFICER || vars.GRIEVANCE_OFFICER }}
           PUBLIC_BASE_URL: ${{ secrets.PUBLIC_BASE_URL || vars.PUBLIC_BASE_URL }}
+          ROTATE_WEBHOOK_SECRET: ${{ inputs.rotate_webhook_secret }}
         run: python3 .github/scripts/fly_secrets.py
       - name: Deploy
         if: steps.setup.outputs.ready == 'true'
