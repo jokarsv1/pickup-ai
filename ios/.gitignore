@@ -4,3 +4,4 @@ Pickup/Info.plist
 build/
 DerivedData/
 *.xcresult
+PickupWidgets/Info.plist

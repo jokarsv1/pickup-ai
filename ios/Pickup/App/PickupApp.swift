@@ -12,6 +12,7 @@ struct PickupApp: App {
             RootView()
                 .environment(model)
                 .task { await model.start() }
+                .onOpenURL { model.handle(url: $0) }
         }
     }
 }
@@ -50,6 +51,7 @@ struct MainTabs: View {
 final class AppDelegate: NSObject, UIApplicationDelegate, UNUserNotificationCenterDelegate {
     func application(_ application: UIApplication, didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]? = nil) -> Bool {
         UNUserNotificationCenter.current().delegate = self
+        Task { @MainActor in AppModel.shared.observeLiveActivities() }
         return true
     }
 

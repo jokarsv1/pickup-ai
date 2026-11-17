@@ -140,6 +140,12 @@ struct HomeView: View {
                 app.openCallId = nil
             }
         }
+        .onChange(of: app.openLiveCallId) {
+            if let id = app.openLiveCallId {
+                path.append(Route.live(id))
+                app.openLiveCallId = nil
+            }
+        }
     }
 }
 

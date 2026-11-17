@@ -30,7 +30,8 @@ struct Tokens: Decodable {
 struct DevLogin: Encodable { var phone: String; var code: String }
 struct RefreshBody: Encodable { var refreshToken: String }
 struct MePatch: Encodable { var name: String?; var language: String?; var onboardingCompleted: Bool? }
-struct DeviceBody: Encodable { var fcmToken: String; var platform = "ios"; var appVersion: String?; var osVersion: String? }
+struct DeviceBody: Encodable { var fcmToken: String; var platform = "ios"; var appVersion: String?; var osVersion: String?; var liveActivityStartToken: String? }
+struct LiveActivityTokenBody: Encodable { var token: String }
 
 struct ForwardingCode: Decodable, Identifiable {
     var key: String

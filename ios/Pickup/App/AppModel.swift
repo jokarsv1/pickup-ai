@@ -1,3 +1,4 @@
+import ActivityKit
 import SwiftUI
 import UIKit
 import UserNotifications
@@ -14,11 +15,15 @@ final class AppModel {
     var user: User?
     /// A call to open, set when the user taps a notification.
     var openCallId: String?
+    /// A live call to open, set when the user taps the Live Activity.
+    var openLiveCallId: String?
     /// Bumped whenever the server reports a change; screens reload when it moves.
     var liveTick = 0
 
     private var events: LiveEvents?
     private var pushToken: String?
+    private var liveActivityStartToken: String?
+    private var observingActivities = false
 
     func start() async {
         #if DEBUG
@@ -95,8 +100,46 @@ final class AppModel {
     private func registerPushToken() async {
         guard let pushToken, await API.shared.hasSession else { return }
         let version = Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String
-        let body = DeviceBody(fcmToken: pushToken, appVersion: version, osVersion: "iOS \(UIDevice.current.systemVersion)")
+        let body = DeviceBody(fcmToken: pushToken, appVersion: version, osVersion: "iOS \(UIDevice.current.systemVersion)", liveActivityStartToken: liveActivityStartToken)
         let _: Empty? = try? await API.shared.post("/v1/devices", body)
+    }
+
+    // MARK: Live Activities (Lock Screen and Dynamic Island)
+
+    /// Hands the server the tokens it needs to start a call's Live Activity, and each activity's
+    /// own update token. Runs at launch, including background launches the system makes for this.
+    func observeLiveActivities() {
+        guard !observingActivities else { return }
+        observingActivities = true
+        if #available(iOS 17.2, *) {
+            Task {
+                for await data in Activity<CallActivityAttributes>.pushToStartTokenUpdates {
+                    liveActivityStartToken = data.map { String(format: "%02x", $0) }.joined()
+                    await registerPushToken()
+                }
+            }
+        }
+        Task {
+            for await activity in Activity<CallActivityAttributes>.activityUpdates {
+                observe(activity)
+            }
+        }
+    }
+
+    private func observe(_ activity: Activity<CallActivityAttributes>) {
+        Task {
+            for await data in activity.pushTokenUpdates {
+                let token = data.map { String(format: "%02x", $0) }.joined()
+                let _: Empty? = try? await API.shared.post("/v1/calls/\(activity.attributes.callId)/live-activity", LiveActivityTokenBody(token: token))
+            }
+        }
+    }
+
+    /// pickup://live/<call id> from the Live Activity.
+    func handle(url: URL) {
+        guard url.scheme == "pickup", url.host == "live" else { return }
+        let id = url.lastPathComponent
+        if !id.isEmpty, id != "/" { openLiveCallId = id }
     }
 }
 
