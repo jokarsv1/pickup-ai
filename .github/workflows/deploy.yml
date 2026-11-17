@@ -1,6 +1,7 @@
 name: Deploy backend (Fly.io)
 
-# Runs when you set the FLY_APP_NAME variable and FLY_API_TOKEN secret (see docs/guides/HOSTING.md).
+# Deploys the backend to Fly.io once the FLY_API_TOKEN secret exists (see docs/guides/HOSTING.md).
+# The app name comes from backend/fly.toml unless you set the FLY_APP_NAME variable.
 on:
   workflow_dispatch:
   push:
@@ -11,19 +12,43 @@ concurrency: deploy
 
 jobs:
   deploy:
-    if: ${{ vars.FLY_APP_NAME != '' }}
     runs-on: ubuntu-latest
-    env:
-      FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}
-      APP: ${{ vars.FLY_APP_NAME }}
     steps:
       - uses: actions/checkout@v4
-      - uses: superfly/flyctl-actions/setup-flyctl@master
-      - name: Create the app and its storage (first deploy only)
+      - name: Check setup
+        id: setup
+        env:
+          RAW_TOKEN: ${{ secrets.FLY_API_TOKEN }}
+          APP_VAR: ${{ vars.FLY_APP_NAME }}
         run: |
-          flyctl apps list --json | grep -q "\"$APP\"" || flyctl apps create "$APP"
+          if [ -z "$RAW_TOKEN" ]; then
+            echo "::notice::Add the FLY_API_TOKEN secret to deploy (docs/guides/HOSTING.md). Skipping."
+            echo "ready=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          # Fly shows tokens as "FlyV1 fm2_…"; accept them with or without the space or the prefix.
+          token=$(printf '%s' "$RAW_TOKEN" | tr -d '\r\n' | sed -E 's/^[[:space:]]*(FlyV1)?[[:space:]]*/FlyV1 /')
+          echo "::add-mask::$token"
+          echo "FLY_API_TOKEN=$token" >> "$GITHUB_ENV"
+          app="${APP_VAR:-$(sed -nE 's/^app *= *"([^"]+)".*/\1/p' backend/fly.toml)}"
+          echo "APP=$app" >> "$GITHUB_ENV"
+          echo "ready=true" >> "$GITHUB_OUTPUT"
+          echo "Deploying to https://$app.fly.dev"
+      - uses: superfly/flyctl-actions/setup-flyctl@master
+        if: steps.setup.outputs.ready == 'true'
+      - name: Check the Fly token
+        if: steps.setup.outputs.ready == 'true'
+        run: |
+          flyctl apps list >/dev/null || { echo "::error::Fly didn't accept FLY_API_TOKEN. Create a new token in the Fly dashboard (Tokens) and paste the whole value, starting with FlyV1."; exit 1; }
+      - name: Create the app and its storage (first deploy only)
+        if: steps.setup.outputs.ready == 'true'
+        run: |
+          if ! flyctl apps list --json | grep -q "\"$APP\""; then
+            flyctl apps create "$APP" || { echo "::error::Couldn't create the Fly app '$APP'. If the name is taken, change app in backend/fly.toml (and pickup.apiBaseUrl in android/gradle.properties). If it's about billing, add a card in the Fly dashboard."; exit 1; }
+          fi
           flyctl volumes list --app "$APP" --json | grep -q pickup_data || flyctl volumes create pickup_data --app "$APP" --region bom --size 1 --yes
       - name: Sync configuration into Fly secrets
+        if: steps.setup.outputs.ready == 'true'
         env:
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
           SARVAM_API_KEY: ${{ secrets.SARVAM_API_KEY }}
@@ -32,13 +57,13 @@ jobs:
           CARTESIA_API_KEY: ${{ secrets.CARTESIA_API_KEY }}
           FCM_SERVICE_ACCOUNT_JSON: ${{ secrets.FCM_SERVICE_ACCOUNT_JSON }}
           BETA_LOGIN_CODE: ${{ secrets.BETA_LOGIN_CODE }}
+          BETA_LOGIN_NUMBERS: ${{ secrets.BETA_LOGIN_NUMBERS || vars.BETA_LOGIN_NUMBERS }}
           EXOTEL_API_KEY: ${{ secrets.EXOTEL_API_KEY }}
           EXOTEL_API_TOKEN: ${{ secrets.EXOTEL_API_TOKEN }}
           PLIVO_AUTH_TOKEN: ${{ secrets.PLIVO_AUTH_TOKEN }}
           TWILIO_AUTH_TOKEN: ${{ secrets.TWILIO_AUTH_TOKEN }}
           GOOGLE_PLAY_SERVICE_ACCOUNT_JSON: ${{ secrets.GOOGLE_PLAY_SERVICE_ACCOUNT_JSON }}
           FIREBASE_PROJECT_ID: ${{ vars.FIREBASE_PROJECT_ID }}
-          BETA_LOGIN_NUMBERS: ${{ vars.BETA_LOGIN_NUMBERS }}
           TELEPHONY_PROVIDER: ${{ vars.TELEPHONY_PROVIDER }}
           EXOTEL_ACCOUNT_SID: ${{ vars.EXOTEL_ACCOUNT_SID }}
           EXOTEL_SUBDOMAIN: ${{ vars.EXOTEL_SUBDOMAIN }}
@@ -53,9 +78,33 @@ jobs:
           PUBLIC_BASE_URL: ${{ vars.PUBLIC_BASE_URL }}
         run: python3 .github/scripts/fly_secrets.py
       - name: Deploy
+        if: steps.setup.outputs.ready == 'true'
         working-directory: backend
         run: flyctl deploy --app "$APP" --remote-only --ha=false --yes
       - name: Check it's up
+        if: steps.setup.outputs.ready == 'true'
         run: |
-          sleep 15
-          curl -fsS "https://$APP.fly.dev/healthz" && echo && curl -fsS "https://$APP.fly.dev/v1/config"
+          for i in $(seq 1 20); do curl -fsS "https://$APP.fly.dev/healthz" >/dev/null 2>&1 && break; sleep 6; done
+          curl -fsS "https://$APP.fly.dev/healthz" && echo && curl -fsS "https://$APP.fly.dev/v1/config" && echo
+          echo "Server: https://$APP.fly.dev"
+      - name: Check the API keys (report only)
+        if: steps.setup.outputs.ready == 'true'
+        env:
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          SARVAM_API_KEY: ${{ secrets.SARVAM_API_KEY }}
+        run: |
+          if [ -n "$ANTHROPIC_API_KEY" ]; then
+            code=$(curl -s -o /dev/null -w '%{http_code}' https://api.anthropic.com/v1/models -H "x-api-key: $ANTHROPIC_API_KEY" -H "anthropic-version: 2023-06-01")
+            [ "$code" = 200 ] && echo "Anthropic key: OK" || echo "::warning::Anthropic key: rejected (HTTP $code)"
+          else echo "::warning::ANTHROPIC_API_KEY secret is missing"; fi
+          if [ -n "$SARVAM_API_KEY" ]; then
+            # One short word of speech: a fraction of a paisa.
+            code=$(curl -s -o /tmp/sarvam.json -w '%{http_code}' https://api.sarvam.ai/text-to-speech \
+              -H "api-subscription-key: $SARVAM_API_KEY" -H "Content-Type: application/json" \
+              -d '{"text":"Hi","target_language_code":"en-IN","speaker":"ritu","model":"bulbul:v3"}')
+            case "$code" in
+              200) echo "Sarvam key: OK" ;;
+              401|403) echo "::warning::Sarvam key: rejected (HTTP $code)" ;;
+              *) echo "::warning::Sarvam key: couldn't confirm (HTTP $code): $(head -c 300 /tmp/sarvam.json)" ;;
+            esac
+          else echo "::warning::SARVAM_API_KEY secret is missing"; fi

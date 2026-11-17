@@ -19,9 +19,8 @@ All keys and settings go into your GitHub repo's settings, never into chat and n
 
 **github.com/jokarsv1/pickup-ai → Settings → Secrets and variables → Actions**
 
-- **Secrets** tab: anything private (API keys, tokens, the beta login code). Nobody can read them
-  back after saving, not even you.
-- **Variables** tab: non-secret settings (app name, your phone number for beta login).
+- **Secrets** tab: everything below. Nobody can read them back after saving, not even you.
+- **Variables** tab: only optional settings (your legal details, overrides).
 
 When you change any of them, go to the **Actions** tab → **Deploy backend (Fly.io)** → **Run workflow**
 so the server picks them up.
@@ -31,15 +30,13 @@ so the server picks them up.
 | Name | Type | Example | From |
 |------|------|---------|------|
 | `FLY_API_TOKEN` | Secret | `FlyV1 fm2_...` | Fly.io dashboard → Tokens |
-| `FLY_APP_NAME` | Variable | `pickup-yourname` | You choose (lowercase, unique) |
-| `PICKUP_API_BASE_URL` | Variable | `https://pickup-yourname.fly.dev` | `https://` + app name + `.fly.dev` |
-| `ANTHROPIC_API_KEY` | Secret | `sk-ant-api03-...` | platform.claude.com |
+| `ANTHROPIC_API_KEY` | Secret | `sk-ant-...` | platform.claude.com |
 | `SARVAM_API_KEY` | Secret | `sk_...` | dashboard.sarvam.ai |
-| `BETA_LOGIN_NUMBERS` | Variable | `+919876543210` | Your mobile number(s), comma-separated |
-| `BETA_LOGIN_CODE` | Secret | `482913` | Make up 6+ digits you'll remember |
-| `FCM_SERVICE_ACCOUNT_JSON` | Secret | `{"type": "service_account", ...}` | Firebase → Service accounts |
+| `BETA_LOGIN_NUMBERS` | Secret | `+919876543210, +919812345678` | The mobile numbers allowed to sign in |
+| `BETA_LOGIN_CODE` | Secret | `482913` | Make up 6+ digits |
+| `FCM_SERVICE_ACCOUNT_JSON` | Secret | `{"type": "service_account", ...}` | Firebase → Service accounts (whole file) |
 | `FIREBASE_PROJECT_ID` | Variable | `pickup-12345` | Only when you switch on SMS sign-in |
 | `SUPPORT_EMAIL`, `LEGAL_ENTITY_NAME`, `LEGAL_ADDRESS`, `GRIEVANCE_OFFICER` | Variables | `you@gmail.com` | Shown on your privacy policy and terms |
 
-Your privacy policy and terms are then live at `https://YOUR-APP.fly.dev/legal/privacy` and
-`https://YOUR-APP.fly.dev/legal/terms`. Those are the URLs Firebase and Google Play ask for.
+The server is **https://pickup-ai-i6v0t.fly.dev** (name set in `backend/fly.toml`). Your privacy policy
+and terms are at `/legal/privacy` and `/legal/terms` there: the URLs Firebase and Google Play ask for.

@@ -21,9 +21,9 @@ jobs:
           java-version: "21"
       - uses: gradle/actions/setup-gradle@v4
       - name: Build and unit-test
-        # Set the repository variable PICKUP_API_BASE_URL (Settings > Secrets and variables > Actions >
-        # Variables) to your server, e.g. https://pickup-yourname.fly.dev, so the APK talks to it.
-        run: ./gradlew --no-configuration-cache assembleDebug testDebugUnitTest -Ppickup.apiBaseUrl=${{ vars.PICKUP_API_BASE_URL || 'http://10.0.2.2:8000' }}
+        # The APK talks to pickup.apiBaseUrl from android/gradle.properties (the Fly.io server).
+        # The PICKUP_API_BASE_URL repository variable overrides it.
+        run: ./gradlew --no-configuration-cache assembleDebug testDebugUnitTest ${{ vars.PICKUP_API_BASE_URL && format('-Ppickup.apiBaseUrl={0}', vars.PICKUP_API_BASE_URL) || '' }}
       - name: Upload debug APK
         uses: actions/upload-artifact@v4
         with:

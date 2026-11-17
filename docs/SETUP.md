@@ -79,7 +79,7 @@ code in `BETA_LOGIN_CODE` (6+ digits). Without push (step 4), live updates show 
 The backend is one Docker image (`backend/Dockerfile`). It runs migrations on start.
 
 **Cheapest path, set up already:** Fly.io in Mumbai, deployed by the **Deploy backend (Fly.io)** workflow.
-Add the `FLY_API_TOKEN` secret and `FLY_APP_NAME` variable and run it; the workflow creates the app and
+Add the `FLY_API_TOKEN` secret and run it (the app name is set in `backend/fly.toml`); the workflow creates the app and
 a 1 GB volume, generates `JWT_SECRET`/`ADMIN_TOKEN`/`TELEPHONY_WEBHOOK_SECRET`, copies your GitHub
 secrets to Fly and deploys. It uses SQLite on the volume (fine for one machine and a beta) at about
 $7/month. Steps: [guides/HOSTING.md](guides/HOSTING.md). Configuration: `backend/fly.toml`.

@@ -24,13 +24,10 @@ the APK to yourself (Google Drive, WhatsApp to yourself, or a USB cable).
 
 To update later, install the newer APK over the old one. Your sign-in and settings stay.
 
-## Point it at your server
+## Which server it talks to
 
-Until your server exists, the app can't do much. After [HOSTING.md](HOSTING.md):
-
-- Add the variable `PICKUP_API_BASE_URL` (for example `https://pickup-yourname.fly.dev`) and re-run
-  the **Android** workflow. Every new APK then talks to your server, or
-- on the app's welcome screen, **long-press the app logo at the top** and type your server address.
+The APK talks to **https://pickup-ai-i6v0t.fly.dev**, so deploy the server first ([HOSTING.md](HOSTING.md)).
+To try a different server, long-press the app logo at the top of the welcome screen and type its address.
 
 ## What works at each stage
 

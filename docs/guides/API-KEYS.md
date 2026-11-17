@@ -35,7 +35,7 @@ of call.
 
 So you can sign in before paying for SMS verification:
 
-1. **Variables** tab → **New repository variable**: `BETA_LOGIN_NUMBERS` = your mobile number with
+1. **Secrets** tab → **New repository secret**: `BETA_LOGIN_NUMBERS` = your mobile number with
    country code, e.g. `+919876543210`. Add more numbers separated by commas for testers.
 2. **Secrets** tab → **New repository secret**: `BETA_LOGIN_CODE` = 6 or more digits you make up.
 
@@ -43,5 +43,5 @@ Only those numbers can sign in, and only with that code.
 
 ## After adding keys
 
-Actions → **Deploy backend (Fly.io)** → **Run workflow**. The last step prints your server's
-settings. `"voice_ready": true` means both keys are in place.
+Actions → **Deploy backend (Fly.io)** → **Run workflow**. The last step, **Check the API keys**,
+says whether Anthropic and Sarvam accepted them.
