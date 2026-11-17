@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "597024672802",
+    "project_id": "pickup-1e035",
+    "storage_bucket": "pickup-1e035.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:597024672802:android:bc69bb88a419be2e3f4e7b",
+        "android_client_info": {
+          "package_name": "ai.pickup.app"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCqM12t3PrKNKSrlx_O3tAl2onXDR6hkmo"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
