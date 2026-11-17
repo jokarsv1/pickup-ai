@@ -28,3 +28,27 @@ jobs:
         env:
           DATABASE_URL: sqlite+aiosqlite:///./ci.db
         run: alembic upgrade head
+
+  docker:
+    # Builds the same image Fly.io deploys and starts it the way Fly does, so a broken image is
+    # caught here instead of on your first deploy.
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build the image
+        run: docker build -t pickup-backend backend
+      - name: Start it with a data volume and check it answers
+        run: |
+          docker run -d --name api -p 8000:8000 -v pickup_data:/data \
+            -e ENV=prod -e DATABASE_URL=sqlite+aiosqlite:////data/pickup.db -e RECORDINGS_DIR=/data/recordings \
+            -e JWT_SECRET="$(openssl rand -hex 32)" -e ADMIN_TOKEN="$(openssl rand -hex 24)" \
+            -e TELEPHONY_WEBHOOK_SECRET="$(openssl rand -hex 24)" -e PUBLIC_BASE_URL=http://localhost:8000 \
+            pickup-backend
+          for i in $(seq 1 30); do curl -fsS localhost:8000/healthz >/dev/null 2>&1 && break; sleep 2; done
+          ok=1
+          curl -fsS localhost:8000/healthz && echo || ok=0
+          curl -fsS localhost:8000/v1/config && echo || ok=0
+          curl -fsS localhost:8000/legal/privacy | grep -qi "privacy" || ok=0
+          curl -fsS localhost:8000/legal/terms | grep -qi "terms" || ok=0
+          docker logs api 2>&1 | tail -40
+          [ "$ok" = 1 ]
