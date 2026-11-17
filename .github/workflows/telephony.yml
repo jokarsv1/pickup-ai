@@ -15,7 +15,7 @@ on:
         options: [exotel, plivo, twilio]
         default: exotel
 
-concurrency: deploy
+concurrency: telephony-admin  # its own queue: sharing "deploy" would cancel a waiting deploy
 
 jobs:
   numbers:

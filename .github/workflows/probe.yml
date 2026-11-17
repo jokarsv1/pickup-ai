@@ -5,7 +5,7 @@ name: Latency and cost probe
 on:
   workflow_dispatch:
 
-concurrency: deploy
+concurrency: probe  # its own queue: sharing "deploy" would cancel a waiting deploy
 
 jobs:
   probe:
