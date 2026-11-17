@@ -2,6 +2,7 @@ package ai.pickup.app.ui.onboarding
 
 import ai.pickup.app.AppGraph
 import ai.pickup.app.auth.PhoneAuth
+import ai.pickup.app.data.ApiException
 import ai.pickup.app.data.AssistantPatch
 import ai.pickup.app.data.ContactBody
 import ai.pickup.app.data.LineDto
@@ -49,6 +50,8 @@ data class OnboardingState(
     val verify: VerifyState = VerifyState.Idle,
     val busy: Boolean = false,
     val error: String? = null,
+    /** The server has no assistant number free yet; setup can be finished later from home. */
+    val waitingForNumber: Boolean = false,
 ) {
     val useFirebase: Boolean get() = config?.authModes?.contains("firebase") == true
     val betaOnly: Boolean get() = config?.authModes?.let { "beta" in it && "firebase" !in it && "dev" !in it } == true
@@ -232,9 +235,9 @@ class OnboardingViewModel(private val graph: AppGraph, private val forcedStep: S
             try {
                 val line = repo.currentLine() ?: repo.createLine(PhoneUtils.carrierName(context), sims, 20)
                 repo.refreshPolicy()
-                _state.update { it.copy(busy = false, line = line, step = if (line.status == "verified") Step.Demo else Step.Forwarding) }
+                _state.update { it.copy(busy = false, line = line, waitingForNumber = false, step = if (line.status == "verified") Step.Demo else Step.Forwarding) }
             } catch (e: Exception) {
-                _state.update { it.copy(busy = false, error = e.message) }
+                _state.update { it.copy(busy = false, error = e.message, waitingForNumber = (e as? ApiException)?.status == 503) }
             }
         }
     }

@@ -131,7 +131,7 @@ fun OnboardingRoute(vm: OnboardingViewModel, onFinished: () -> Unit) {
             Step.Forwarding -> ForwardingScreen(vm, state)
             Step.Verify -> VerifyScreen(vm, state)
             Step.Demo -> DemoScreen(vm)
-            Step.Done -> DoneScreen(vm, onFinished)
+            Step.Done -> DoneScreen(vm, state, onFinished)
         }
     }
 }
@@ -383,6 +383,9 @@ private fun PermissionsScreen(vm: OnboardingViewModel, state: OnboardingState) {
         error = state.error,
         footer = {
             PrimaryButton("Continue", onClick = { vm.permissionsDone(context) }, enabled = screening, loading = state.busy)
+            if (state.waitingForNumber) {
+                TextButton(onClick = { vm.go(Step.Done) }, modifier = Modifier.fillMaxWidth()) { Text("Skip for now") }
+            }
             if (!screening) {
                 Text(
                     "Call screening is required. It's how Pickup sends unknown callers to your assistant.",
@@ -599,11 +602,13 @@ private fun DemoScreen(vm: OnboardingViewModel) {
 }
 
 @Composable
-private fun DoneScreen(vm: OnboardingViewModel, onFinished: () -> Unit) {
+private fun DoneScreen(vm: OnboardingViewModel, state: OnboardingState, onFinished: () -> Unit) {
+    val ready = state.line?.status == "verified"
     StepLayout(
         stepIndex = null,
-        title = "You're all set",
-        body = "Here's how to get the most out of Pickup.",
+        title = if (ready) "You're all set" else "Almost there",
+        body = if (ready) "Here's how to get the most out of Pickup."
+        else "Calls ring you normally until call forwarding is set up. Finish it any time from the home screen.",
         footer = { PrimaryButton("Go to Pickup", onClick = { vm.finish(onFinished) }) },
     ) {
         Benefit(Icons.Filled.NotificationsActive, "Watch calls live", "When your assistant answers, a live notification shows the transcript. Reply or join from there.")
