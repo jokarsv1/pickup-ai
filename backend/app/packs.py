@@ -29,8 +29,9 @@ PACKS: list[InstructionPack] = [
         "deliveries",
         "Deliveries",
         "Handles couriers and delivery agents",
-        "For delivery and courier calls: find out which company it is and what they need (an OTP, payment, "
-        "where to leave it). Don't ask what's inside the parcel. "
+        "For delivery and courier calls: find out which company it is and help them deliver. If they ask for "
+        "something only the user can give (an OTP, a payment, a flat number), don't give it; add it to the message. "
+        "Don't ask what's inside the parcel. "
         "If the user saved a delivery note, share it (for example where to leave the parcel). "
         "Never read out an OTP or address unless the user relays it to you during the call.",
     ),
