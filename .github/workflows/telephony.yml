@@ -1,0 +1,76 @@
+name: Phone numbers and telephony links
+
+# Run from the Actions tab. Shows the exact links to paste into Exotel (or Plivo/Twilio) and the
+# numbers in the assistant-number pool. Type numbers into the box to add them to the pool.
+on:
+  workflow_dispatch:
+    inputs:
+      numbers:
+        description: "Numbers to add (optional), e.g. +918047491899, +918047491900"
+        required: false
+        default: ""
+      provider:
+        description: "Which company the numbers are from"
+        type: choice
+        options: [exotel, plivo, twilio]
+        default: exotel
+
+concurrency: deploy
+
+jobs:
+  numbers:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Check setup
+        env:
+          RAW_TOKEN: ${{ secrets.FLY_API_TOKEN }}
+          APP_VAR: ${{ vars.FLY_APP_NAME }}
+        run: |
+          [ -n "$RAW_TOKEN" ] || { echo "::error::Add the FLY_API_TOKEN secret first (docs/guides/HOSTING.md)."; exit 1; }
+          token=$(printf '%s' "$RAW_TOKEN" | tr -d '\r\n' | sed -E 's/^[[:space:]]*(FlyV1)?[[:space:]]*/FlyV1 /')
+          echo "::add-mask::$token"
+          echo "FLY_API_TOKEN=$token" >> "$GITHUB_ENV"
+          echo "APP=${APP_VAR:-$(sed -nE 's/^app *= *"([^"]+)".*/\1/p' backend/fly.toml)}" >> "$GITHUB_ENV"
+      - uses: superfly/flyctl-actions/setup-flyctl@master
+      - name: Read the server's admin token and webhook secret
+        run: |
+          admin=$(flyctl ssh console --app "$APP" -C "printenv ADMIN_TOKEN" 2>/dev/null | tr -d '\r' | grep -v '^$' | tail -n1)
+          hook=$(flyctl ssh console --app "$APP" -C "printenv TELEPHONY_WEBHOOK_SECRET" 2>/dev/null | tr -d '\r' | grep -v '^$' | tail -n1)
+          [ -n "$admin" ] && [ -n "$hook" ] || { echo "::error::Couldn't read the server's settings. Is the server deployed? Run 'Deploy backend (Fly.io)' first."; exit 1; }
+          echo "::add-mask::$admin"
+          echo "ADMIN_TOKEN=$admin" >> "$GITHUB_ENV"
+          echo "HOOK=$hook" >> "$GITHUB_ENV"
+      - name: Add numbers to the pool
+        if: inputs.numbers != ''
+        env:
+          NUMBERS: ${{ inputs.numbers }}
+          PROVIDER: ${{ inputs.provider }}
+        run: |
+          body=$(python3 -c 'import json,os,re; print(json.dumps([{"number": n, "provider": os.environ["PROVIDER"]} for n in re.split(r"[,\s]+", os.environ["NUMBERS"]) if n]))')
+          curl -fsS -X POST "https://$APP.fly.dev/admin/numbers" -H "X-Admin-Token: $ADMIN_TOKEN" -H "Content-Type: application/json" -d "$body"
+          echo
+      - name: Show the links and the number pool
+        run: |
+          base="https://$APP.fly.dev/telephony"
+          pool=$(curl -fsS "https://$APP.fly.dev/admin/numbers" -H "X-Admin-Token: $ADMIN_TOKEN")
+          health=$(curl -fsS "https://$APP.fly.dev/admin/health" -H "X-Admin-Token: $ADMIN_TOKEN")
+          {
+            echo "## Exotel flow links"
+            echo "Paste these into the applets of your Exotel flow (App Bazaar):"
+            echo ""
+            echo "| Applet | URL |"
+            echo "|---|---|"
+            echo "| Voicebot | \`$base/exotel/$HOOK/voicebot\` |"
+            echo "| Passthru | \`$base/exotel/$HOOK/passthru\` |"
+            echo "| Connect (dynamic URL) | \`$base/exotel/$HOOK/connect\` |"
+            echo ""
+            echo "Plivo answer URL: \`$base/plivo/inbound\` · Twilio voice webhook: \`$base/twilio/inbound\`"
+            echo ""
+            echo "## Number pool"
+            echo '```json'
+            echo "$pool" | python3 -m json.tool
+            echo '```'
+            echo "Server health: \`$health\`"
+          } >> "$GITHUB_STEP_SUMMARY"
+          echo "Open this run's Summary page to see the links and numbers."

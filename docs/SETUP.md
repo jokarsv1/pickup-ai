@@ -106,7 +106,9 @@ adapters are included for other markets).
 1. Open an Exotel account and complete business KYC. Indian virtual numbers need it.
 2. Rent ExoPhones. **Each user needs one** (that's how the backend knows whose call it is).
    Start with a handful for testing.
-3. In **App Bazaar**, build the inbound flow and attach it to every ExoPhone:
+3. Get your exact links: GitHub → **Actions → Phone numbers and telephony links → Run workflow**, then
+   open the run's **Summary**. It lists the three URLs below with your server and secret filled in.
+   In **App Bazaar**, build the inbound flow and attach it to every ExoPhone:
    - **Voicebot** applet → URL `https://YOUR_DOMAIN/telephony/exotel/YOUR_WEBHOOK_SECRET/voicebot`
    - then **Passthru** applet → URL `https://YOUR_DOMAIN/telephony/exotel/YOUR_WEBHOOK_SECRET/passthru`
      - on **200** → **Connect** applet with dynamic URL `https://YOUR_DOMAIN/telephony/exotel/YOUR_WEBHOOK_SECRET/connect`
@@ -115,7 +117,8 @@ adapters are included for other markets).
    id in `EXOTEL_OUTBOUND_FLOW_ID`.
 5. Set `EXOTEL_ACCOUNT_SID`, `EXOTEL_API_KEY`, `EXOTEL_API_TOKEN` (and `EXOTEL_SUBDOMAIN=api.in.exotel.com`
    if your account is on the Mumbai cluster).
-6. Load the numbers into the pool:
+6. Load the numbers into the pool: run the same workflow and type the numbers into its box
+   (e.g. `+9180XXXXXXXX, +9180YYYYYYYY`). Running your own server instead:
 
 ```bash
 cd backend && python -m scripts.add_numbers --provider exotel +9180XXXXXXXX +9180YYYYYYYY
