@@ -194,7 +194,7 @@ fun SettingsScreen(
             Card(colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerLowest), modifier = Modifier.fillMaxWidth().padding(top = 8.dp)) {
                 ListItem(
                     headlineContent = { Text(state.user?.name ?: "Your name") },
-                    supportingContent = { Text(state.user?.phone ?: "") },
+                    supportingContent = { Text(Format.phone(state.user?.phone)) },
                     trailingContent = { TextButton(onClick = { editingName = true }) { Text("Edit") } },
                 )
                 HorizontalDivider()

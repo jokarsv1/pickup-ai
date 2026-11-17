@@ -70,7 +70,8 @@ async def list_calls(
     cursor: str | None = None,
     limit: int = Query(30, ge=1, le=100),
 ) -> CallPage:
-    stmt = select(Call).where(Call.user_id == user.id, Call.deleted.is_(False), Call.mode != "demo")
+    # Calls still in progress show in the live banner (GET /calls/live), not in the history.
+    stmt = select(Call).where(Call.user_id == user.id, Call.deleted.is_(False), Call.mode != "demo", Call.state.not_in(LIVE_STATES))
     if category:
         stmt = stmt.where(Call.category == category)
     if q:

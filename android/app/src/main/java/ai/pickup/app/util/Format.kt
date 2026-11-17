@@ -62,6 +62,17 @@ object Format {
         else -> "Good evening"
     }
 
+    /** "+919876543210" -> "+91 98765 43210"; Indian landlines and other numbers keep their digits grouped simply. */
+    fun phone(e164: String?): String {
+        if (e164.isNullOrBlank()) return ""
+        val d = e164.filter { it.isDigit() }
+        if (e164.startsWith("+91") && d.length == 12) {
+            val n = d.substring(2)
+            return if (n[0] in '6'..'9') "+91 ${n.substring(0, 5)} ${n.substring(5)}" else "+91 ${n.substring(0, 2)} ${n.substring(2, 6)} ${n.substring(6)}"
+        }
+        return e164
+    }
+
     fun firstName(name: String?): String = name?.trim()?.split(" ")?.firstOrNull()?.takeIf { it.isNotBlank() } ?: ""
 
     /** Indian mobile numbers typed without the country code. */

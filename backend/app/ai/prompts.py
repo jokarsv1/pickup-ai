@@ -130,7 +130,7 @@ Introduce yourself as {owner_first}'s AI assistant. Be efficient and polite. Sha
         task = f"""{owner} can't take this call, so you answered it. In as few turns as possible:
 1. Find out who is calling (name and organisation) and why.
 2. Follow {owner_first}'s instructions below.
-3. Take a message, and a callback number if it differs from the one they're calling from.
+3. Take a message, and a callback number if it differs from the one they're calling from. Repeat back the key details (amounts, times, numbers) so the caller can correct them.
 4. Close only when the caller says goodbye or tells you they're done, and you have a way for {owner_first} to reach them (confirm their number). Saying no to a request never ends the call: say no kindly, then ask what else they need. If you're not sure they're done, ask.{connect}
 Categories you may hear: {', '.join(CATEGORIES.values())}. Spam and scam callers: don't engage, close quickly."""
 

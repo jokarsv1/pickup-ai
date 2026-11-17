@@ -309,7 +309,7 @@ private fun IntentCard(call: CallDetail) {
                 Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                     if (call.category != null) Pill(call.categoryLabel ?: style.label, style.color)
                     if (call.urgency == "high") Pill("Urgent", LocalPickupColors.current.live)
-                    call.callerNumber?.let { Text(it, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant) }
+                    call.callerNumber?.let { Text(Format.phone(it), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant) }
                 }
             }
         }
@@ -352,7 +352,7 @@ fun CallDetailScreen(vm: CallViewModel, onBack: () -> Unit, onOpenLive: (String)
         topBar = {
             TopAppBar(
                 navigationIcon = { IconButton(onClick = onBack) { Icon(Icons.AutoMirrored.Filled.ArrowBack, "Back") } },
-                title = { Text(call?.title ?: "Call", maxLines = 1) },
+                title = {}, // the header below shows who called
                 actions = { IconButton(onClick = { vm.delete(onBack) }) { Icon(Icons.Filled.Delete, "Delete call") } },
             )
         },
@@ -370,7 +370,7 @@ fun CallDetailScreen(vm: CallViewModel, onBack: () -> Unit, onOpenLive: (String)
                 Column(Modifier.weight(1f)) {
                     Text(call.title, style = MaterialTheme.typography.titleLarge)
                     Text(
-                        listOfNotNull(call.callerNumber, Format.dateTime(call.startedAt), Format.duration(call.durationSeconds).ifBlank { null }).joinToString(" · "),
+                        listOfNotNull(call.callerNumber?.let(Format::phone), Format.dateTime(call.startedAt).ifBlank { null }, Format.duration(call.durationSeconds).ifBlank { null }).joinToString(" · "),
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
@@ -379,7 +379,7 @@ fun CallDetailScreen(vm: CallViewModel, onBack: () -> Unit, onOpenLive: (String)
             Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                 val style = categoryStyle(call.category, call.isSpam)
                 Pill(call.categoryLabel ?: style.label, style.color)
-                if (call.isSpam) Pill("Likely spam", LocalPickupColors.current.spam)
+                if (call.isSpam && call.category != "scam") Pill("Likely spam", LocalPickupColors.current.spam)
                 if (call.direction == "outbound") Pill("Your assistant called them", MaterialTheme.colorScheme.primary)
             }
             Spacer(Modifier.height(16.dp))

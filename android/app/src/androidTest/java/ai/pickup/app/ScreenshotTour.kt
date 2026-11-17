@@ -1,11 +1,13 @@
 package ai.pickup.app
 
 import android.graphics.Bitmap
+import androidx.compose.ui.test.hasScrollAction
 import androidx.compose.ui.test.hasSetTextAction
 import androidx.compose.ui.test.junit4.createAndroidComposeRule
 import androidx.compose.ui.test.onAllNodesWithText
-import androidx.compose.ui.test.onRoot
+import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
+import androidx.compose.ui.test.performScrollTo
 import androidx.compose.ui.test.performTextInput
 import androidx.compose.ui.test.performTouchInput
 import androidx.compose.ui.test.swipeUp
@@ -113,10 +115,10 @@ class ScreenshotTour {
         tap("Settings")
         waitFor("How Pickup answers")
         shot("15-settings")
-        rule.onRoot().performTouchInput { swipeUp() }
+        rule.onAllNodes(hasScrollAction())[0].performTouchInput { swipeUp(); swipeUp() }
         shot("16-settings-more")
 
-        tap("Instructions")
+        rule.onNodeWithText("Instructions").performScrollTo().performClick()
         waitFor("Ready-made packs")
         shot("17-instructions")
     }

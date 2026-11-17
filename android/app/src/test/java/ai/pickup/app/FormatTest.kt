@@ -26,6 +26,13 @@ class FormatTest {
         assertEquals("Sun, 15 Nov", Format.dayLabel("2026-11-15T10:00:00+05:30", today, zone))
     }
 
+    @Test fun phoneNumbers() {
+        assertEquals("+91 98765 43210", Format.phone("+919876543210"))
+        assertEquals("+91 22 2654 3210", Format.phone("+912226543210"))
+        assertEquals("+14155552671", Format.phone("+14155552671"))
+        assertEquals("", Format.phone(null))
+    }
+
     @Test fun durationsAndCountdowns() {
         assertEquals("1m 5s", Format.duration(65))
         assertEquals("", Format.duration(null))
