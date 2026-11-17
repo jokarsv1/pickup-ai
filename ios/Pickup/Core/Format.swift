@@ -54,6 +54,18 @@ enum Format {
         return "+91 \(s(0, 2)) \(s(2, 6)) \(s(6, 10))"
     }
 
+    /// A call's title, with a bare number shown nicely formatted.
+    static func callTitle(_ title: String, number: String?) -> String {
+        titleIsNumber(title, number: number) ? phone(number) : title
+    }
+
+    /// True when the server had no name for the caller, so the title is just their number.
+    static func titleIsNumber(_ title: String, number: String?) -> Bool {
+        guard let number, !number.isEmpty else { return false }
+        let digits = title.filter(\.isNumber)
+        return !digits.isEmpty && digits == number.filter(\.isNumber) && title.filter(\.isLetter).isEmpty
+    }
+
     /// Accepts "98765 43210", "09876543210" or "+91 98765-43210"; returns E.164 or nil.
     static func indianMobile(_ input: String) -> String? {
         var digits = input.filter(\.isNumber)

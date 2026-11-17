@@ -147,8 +147,9 @@ struct CallDetailView: View {
             HStack(spacing: 14) {
                 CategoryAvatar(category: call.category, spam: call.isSpam, size: 56)
                 VStack(alignment: .leading, spacing: 2) {
-                    Text(call.title).font(.title2.bold())
-                    Text([Format.phone(call.callerNumber), Format.dateTime(call.startedAt), Format.duration(call.durationSeconds)].filter { !$0.isEmpty }.joined(separator: " · "))
+                    Text(Format.callTitle(call.title, number: call.callerNumber)).font(.title2.bold())
+                    Text([Format.titleIsNumber(call.title, number: call.callerNumber) ? "" : Format.phone(call.callerNumber),
+                          Format.dateTime(call.startedAt), Format.duration(call.durationSeconds)].filter { !$0.isEmpty }.joined(separator: " · "))
                         .font(.footnote)
                         .foregroundStyle(.secondary)
                 }

@@ -9,6 +9,14 @@ final class FormatTests: XCTestCase {
         XCTAssertEqual(Format.phone(nil), "")
     }
 
+    func testCallTitles() {
+        XCTAssertEqual(Format.callTitle("+917428531902", number: "+917428531902"), "+91 74285 31902")
+        XCTAssertTrue(Format.titleIsNumber("+91 74285 31902", number: "+917428531902"))
+        XCTAssertFalse(Format.titleIsNumber("Rohit · TalentEdge", number: "+919900112233"))
+        XCTAssertEqual(Format.callTitle("Rohit · TalentEdge", number: "+919900112233"), "Rohit · TalentEdge")
+        XCTAssertFalse(Format.titleIsNumber("Unknown", number: nil))
+    }
+
     func testIndianMobileInput() {
         XCTAssertEqual(Format.indianMobile("98765 43210"), "+919876543210")
         XCTAssertEqual(Format.indianMobile("09876543210"), "+919876543210")

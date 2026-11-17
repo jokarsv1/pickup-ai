@@ -124,11 +124,14 @@ struct HomeView: View {
             .onSubmit(of: .search) { Task { await model.load() } }
             .refreshable { await model.load() }
             .navigationDestination(for: Route.self) { route in
-                switch route {
-                case .call(let id): CallDetailView(callId: id)
-                case .live(let id): LiveCallView(callId: id)
-                case .setup: ForwardingSettingsView()
+                Group {
+                    switch route {
+                    case .call(let id): CallDetailView(callId: id)
+                    case .live(let id): LiveCallView(callId: id)
+                    case .setup: ForwardingSettingsView()
+                    }
                 }
+                .toolbarRole(.editor) // a plain back arrow, not "Good evening, Asha"
             }
         }
         .task { await model.load() }
@@ -200,7 +203,7 @@ private struct LiveBanner: View {
         HStack(spacing: 12) {
             Circle().fill(Color.saffron).frame(width: 12, height: 12)
             VStack(alignment: .leading, spacing: 2) {
-                Text("Live: \(call.title)").font(.headline)
+                Text("Live: \(Format.callTitle(call.title, number: call.callerNumber))").font(.headline)
                 if let reason = call.reason, !reason.isEmpty { Text(reason).font(.subheadline).foregroundStyle(.secondary) }
             }
             Spacer()
@@ -264,7 +267,7 @@ struct CallRow: View {
             CategoryAvatar(category: call.category, spam: call.isSpam)
             VStack(alignment: .leading, spacing: 3) {
                 HStack(spacing: 6) {
-                    Text(call.title).font(.headline).lineLimit(1)
+                    Text(Format.callTitle(call.title, number: call.callerNumber)).font(.headline).lineLimit(1)
                     if call.isSpam { Pill(text: "Spam", color: .danger) }
                     if call.urgency == "high" { Pill(text: "Urgent", color: .saffron) }
                 }

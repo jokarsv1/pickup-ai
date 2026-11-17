@@ -56,6 +56,7 @@ struct StepLayout<Content: View, Footer: View>: View {
                 }
                 .padding(24)
             }
+            .scrollDismissesKeyboard(.interactively) // drag down to reach choices under the keyboard
             VStack(spacing: 8) { footer }
                 .padding(.horizontal, 24)
                 .padding(.bottom, 16)
@@ -161,6 +162,7 @@ private struct ProfileStep: View {
         StepLayout(progress: 1, title: "Make it yours", subtitle: "Your assistant introduces itself as yours, in your callers' language.", error: model.error) {
             TextField("Your name", text: $model.name)
                 .textContentType(.name)
+                .submitLabel(.done)
                 .font(.title3)
                 .padding()
                 .background(Color.card, in: RoundedRectangle(cornerRadius: 14))
@@ -284,7 +286,7 @@ private struct CodeCard: View {
                 Text("\(number)").font(.headline).foregroundStyle(.white).frame(width: 28, height: 28).background(Color.ink, in: Circle())
                 Text(code.title).font(.headline)
             }
-            Text(code.description).font(.footnote).foregroundStyle(.secondary)
+            Text(code.help).font(.footnote).foregroundStyle(.secondary)
             HStack {
                 Text(code.code).font(.body.monospaced()).textSelection(.enabled)
                 Spacer()

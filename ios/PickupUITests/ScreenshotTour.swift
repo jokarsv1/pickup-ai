@@ -36,7 +36,7 @@ final class ScreenshotTour: XCTestCase {
     }
 
     private func element(_ app: XCUIApplication, containing text: String) -> XCUIElement {
-        app.descendants(matching: .any).matching(NSPredicate(format: "label CONTAINS %@", text)).firstMatch
+        app.descendants(matching: .any).matching(NSPredicate(format: "label CONTAINS[c] %@", text)).firstMatch
     }
 
     private func signIn(_ app: XCUIApplication, phone: String, capture: Bool) {
@@ -61,7 +61,7 @@ final class ScreenshotTour: XCTestCase {
         let name = app.textFields["onboarding.name"]
         wait(name)
         name.tap()
-        name.typeText("Asha Rao")
+        name.typeText("Asha Rao\n") // Done closes the keyboard, showing every language
         shot("03-profile")
         app.buttons["Continue"].tap()
         wait(app.staticTexts["Know who's calling, live"])

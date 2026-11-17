@@ -222,7 +222,7 @@ struct ForwardingSettingsView: View {
                     ForEach(line.activationCodes) { code in
                         VStack(alignment: .leading, spacing: 6) {
                             Text(code.title).font(.headline)
-                            Text(code.description).font(.footnote).foregroundStyle(.secondary)
+                            Text(code.help).font(.footnote).foregroundStyle(.secondary)
                             HStack {
                                 Text(code.code).font(.body.monospaced())
                                 Spacer()

@@ -39,6 +39,12 @@ struct ForwardingCode: Decodable, Identifiable {
     var description: String
     var code: String
     var id: String { key }
+
+    /// The server's wording is written for Android, where Pickup declines calls for you.
+    /// On iPhone you decline them yourself.
+    var help: String {
+        key == "busy" ? "Calls you decline, or that come in while you're on a call, go to your assistant. This is the one that matters most." : description
+    }
 }
 
 struct Line: Decodable {
