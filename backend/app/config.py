@@ -87,6 +87,7 @@ class Settings(BaseSettings):
     free_calls_per_month: int = 15
     google_play_package_name: str = "ai.pickup.app"
     google_play_service_account_file: str | None = None
+    google_play_service_account_json: str | None = None  # the file's contents (for hosts without files)
     play_pro_product_ids: list[str] = ["pickup_pro_monthly", "pickup_pro_yearly"]
 
     @property

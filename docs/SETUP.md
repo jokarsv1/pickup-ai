@@ -18,7 +18,7 @@ Nothing needs a code change.
 | 3 | Firebase project | Real OTP sign-in and push notifications | `google-services.json`, `FIREBASE_PROJECT_ID`, `FCM_SERVICE_ACCOUNT_FILE` |
 | 4 | A server with HTTPS | Telephony webhooks need a public URL | `PUBLIC_BASE_URL`, `DATABASE_URL`, `REDIS_URL` |
 | 5 | Exotel account and numbers | Calls actually reaching the AI | `EXOTEL_*` + flows |
-| 6 | Google Play Console | Publishing and subscriptions | Play Console + `GOOGLE_PLAY_SERVICE_ACCOUNT_FILE` |
+| 6 | Google Play Console | Publishing and subscriptions | Play Console + `GOOGLE_PLAY_SERVICE_ACCOUNT_JSON` |
 | 7 | ~~Legal pages~~ Built; add your details | Play Store approval, user trust | `LEGAL_*`, `SUPPORT_EMAIL`, `GRIEVANCE_OFFICER` |
 
 ---
@@ -131,7 +131,8 @@ number's Answer URL at `https://YOUR_DOMAIN/telephony/plivo/inbound` (POST).
    `PLAY_PRO_PRODUCT_IDS`). Add a 7-day free trial offer if you want Play to manage trials.
 3. **Purchase verification:** in Google Cloud, create a service account, enable the
    *Google Play Android Developer API*, invite the account in Play Console → Users and permissions
-   with "View financial data", download its JSON and set `GOOGLE_PLAY_SERVICE_ACCOUNT_FILE`.
+   with "View financial data", download its JSON and set `GOOGLE_PLAY_SERVICE_ACCOUNT_JSON` to its contents
+   (a GitHub secret if you deploy with the Fly.io workflow) or `GOOGLE_PLAY_SERVICE_ACCOUNT_FILE` to its path.
 4. **Release signing:** create an upload key (Play App Signing) and add its SHA-1/SHA-256 to Firebase.
 5. **App content:** the Data safety form must declare contacts (used to let contacts ring through),
    phone state (SIM count) and call audio processed on the server. The call screening role needs no

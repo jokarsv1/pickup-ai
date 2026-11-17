@@ -2,6 +2,7 @@
 
 import asyncio
 import contextlib
+import json
 from datetime import UTC, datetime
 
 import httpx
@@ -97,14 +98,16 @@ async def cancel_outbound(task_id: str, session: Session, user: CurrentUser) -> 
 async def _verify_play_subscription(product_id: str, token: str) -> dict:
     """Google Play Developer API: purchases.subscriptionsv2.get."""
     s = get_settings()
-    if not s.google_play_service_account_file:
+    if not (s.google_play_service_account_json or s.google_play_service_account_file):
         raise HTTPException(status.HTTP_503_SERVICE_UNAVAILABLE, "Purchases can't be verified on this server yet")
     from google.auth.transport.requests import Request
     from google.oauth2 import service_account
 
-    creds = service_account.Credentials.from_service_account_file(
-        s.google_play_service_account_file, scopes=["https://www.googleapis.com/auth/androidpublisher"]
-    )
+    scopes = ["https://www.googleapis.com/auth/androidpublisher"]
+    if s.google_play_service_account_json:
+        creds = service_account.Credentials.from_service_account_info(json.loads(s.google_play_service_account_json), scopes=scopes)
+    else:
+        creds = service_account.Credentials.from_service_account_file(s.google_play_service_account_file, scopes=scopes)
     await run_in_threadpool(creds.refresh, Request())
     url = (
         "https://androidpublisher.googleapis.com/androidpublisher/v3/applications/"
