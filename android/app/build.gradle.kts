@@ -49,6 +49,9 @@ android {
             isMinifyEnabled = true
             isShrinkResources = true
             proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
+            // Beta builds for the download page are signed with the same committed key, so
+            // Firebase fingerprints match. Google Play releases will use a separate upload key.
+            signingConfig = signingConfigs.getByName("debug")
         }
     }
 

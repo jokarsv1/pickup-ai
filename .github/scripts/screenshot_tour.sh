@@ -34,5 +34,11 @@ adb shell am instrument -w -e class "$PKG.ScreenshotTour#mainApp" $RUNNER | tee 
 collect
 
 adb logcat -d -v time '*:E' | grep -v -E 'chatty|GoogleApiManager|Finsky' | tail -400 > out/logcat-errors.txt
+
+# The minified release APK (what the download page serves) must sign in without crashing.
+adb uninstall $PKG.test >/dev/null 2>&1
+adb uninstall $PKG >/dev/null 2>&1
+adb install -r -g android/app/build/outputs/apk/release/app-release.apk >/dev/null
+if python3 .github/scripts/release_smoke.py > out/release-smoke.txt 2>&1; then cat out/release-smoke.txt; else cat out/release-smoke.txt; touch out/RELEASE-SMOKE-FAILED; fi
 ls -la out/screens
 exit 0

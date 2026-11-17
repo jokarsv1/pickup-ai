@@ -41,7 +41,7 @@ jobs:
 
       - name: Build the app and the screenshot tour
         working-directory: android
-        run: ./gradlew --no-configuration-cache assembleDebug assembleDebugAndroidTest -Ppickup.apiBaseUrl=http://10.0.2.2:8000
+        run: ./gradlew --no-configuration-cache assembleDebug assembleDebugAndroidTest assembleRelease -Ppickup.apiBaseUrl=http://10.0.2.2:8000
 
       - name: Enable hardware acceleration for the emulator
         run: |
