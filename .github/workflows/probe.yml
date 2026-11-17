@@ -1,0 +1,30 @@
+name: Latency and cost probe
+
+# Plays a scripted ~2 minute call on the live server (backend/app/tools/latency_probe.py) and
+# reports how long each step takes and what it costs. Spends a few cents of AI credit.
+on:
+  workflow_dispatch:
+
+concurrency: deploy
+
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Check setup
+        env:
+          RAW_TOKEN: ${{ secrets.FLY_API_TOKEN }}
+          APP_VAR: ${{ vars.FLY_APP_NAME }}
+        run: |
+          [ -n "$RAW_TOKEN" ] || { echo "::error::Add the FLY_API_TOKEN secret first."; exit 1; }
+          token=$(printf '%s' "$RAW_TOKEN" | tr -d '\r\n' | sed -E 's/^[[:space:]]*(FlyV1)?[[:space:]]*/FlyV1 /')
+          echo "::add-mask::$token"
+          echo "FLY_API_TOKEN=$token" >> "$GITHUB_ENV"
+          echo "APP=${APP_VAR:-$(sed -nE 's/^app *= *"([^"]+)".*/\1/p' backend/fly.toml)}" >> "$GITHUB_ENV"
+      - uses: superfly/flyctl-actions/setup-flyctl@master
+      - name: Run a scripted 2-minute call on the server
+        run: |
+          flyctl ssh console --app "$APP" -C "sh -c 'cd /app && python -m app.tools.latency_probe'" > probe.json
+          cat probe.json
+          { echo '## Probe result'; echo '```json'; cat probe.json; echo '```'; } >> "$GITHUB_STEP_SUMMARY"
