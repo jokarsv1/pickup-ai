@@ -307,3 +307,27 @@ async def test_security_guards(app_env):
     async with sessionmaker()() as session:
         assert await session.scalar(select(func.count()).select_from(Call).where(Call.user_id == me["id"])) == 0
         assert await session.scalar(select(func.count()).select_from(TranscriptSegment)) == 0
+
+
+async def test_apk_upload_and_download(app_env, tmp_path):
+    """The Android workflow publishes each APK; testers download it from the home page link."""
+    from app.config import get_settings
+
+    s = get_settings()
+    saved = (s.downloads_dir, s.admin_token)
+    s.downloads_dir, s.admin_token = str(tmp_path), "admin-secret-token"
+    try:
+        c = app_env.client
+        assert "aren't published yet" in (await c.get("/")).text
+        assert (await c.get("/download/android")).status_code == 404
+        apk = b"PK\x03\x04" + b"x" * 4096
+        assert (await c.put("/admin/apk?version=0.1.0-7", content=apk)).status_code == 403
+        up = await c.put("/admin/apk?version=0.1.0-7", content=apk, headers={"X-Admin-Token": "admin-secret-token"})
+        assert up.status_code == 200 and up.json()["size"] == len(apk)
+        home = (await c.get("/")).text
+        assert "Download for Android" in home and "0.1.0-7" in home
+        dl = await c.get("/download/android")
+        assert dl.status_code == 200 and dl.content == apk
+        assert dl.headers["content-type"] == "application/vnd.android.package-archive"
+    finally:
+        s.downloads_dir, s.admin_token = saved

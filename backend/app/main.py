@@ -12,7 +12,7 @@ from app.config import get_settings
 from app.db import create_all, sessionmaker, utcnow
 from app.events import bus
 from app.models import AssistantSettings, Call
-from app import legal
+from app import downloads, legal
 from app.routers import account, admin, assistant_chat, calls, setup, telephony
 from app.storage import delete_recording
 
@@ -104,7 +104,7 @@ def create_app() -> FastAPI:
 
     if s.cors_origins:
         app.add_middleware(CORSMiddleware, allow_origins=s.cors_origins, allow_methods=["*"], allow_headers=["*"])
-    for module in (account, setup, calls, assistant_chat, telephony, admin, legal):
+    for module in (account, setup, calls, assistant_chat, telephony, admin, legal, downloads):
         app.include_router(module.router)
     return app
 

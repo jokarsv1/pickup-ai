@@ -73,6 +73,7 @@ jobs:
           APNS_KEY_ID: ${{ secrets.APNS_KEY_ID || vars.APNS_KEY_ID }}
           APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID || vars.APPLE_TEAM_ID }}
           IOS_BUNDLE_ID: ${{ secrets.IOS_BUNDLE_ID || vars.IOS_BUNDLE_ID }}
+          IOS_TESTFLIGHT_URL: ${{ secrets.IOS_TESTFLIGHT_URL || vars.IOS_TESTFLIGHT_URL }}
           FIREBASE_PROJECT_ID: ${{ secrets.FIREBASE_PROJECT_ID || vars.FIREBASE_PROJECT_ID }}
           TELEPHONY_PROVIDER: ${{ secrets.TELEPHONY_PROVIDER || vars.TELEPHONY_PROVIDER }}
           EXOTEL_ACCOUNT_SID: ${{ secrets.EXOTEL_ACCOUNT_SID || vars.EXOTEL_ACCOUNT_SID }}

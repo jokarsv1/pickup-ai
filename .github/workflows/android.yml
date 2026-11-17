@@ -29,3 +29,43 @@ jobs:
         with:
           name: pickup-debug-apk
           path: android/app/build/outputs/apk/debug/*.apk
+
+  publish:
+    # Puts each APK built from main on the server, so testers download it from
+    # https://<app>.fly.dev (no GitHub account needed). Skipped until FLY_API_TOKEN exists.
+    needs: build
+    if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    concurrency: publish-apk
+    steps:
+      - uses: actions/checkout@v4
+      - name: Check setup
+        id: setup
+        env:
+          RAW_TOKEN: ${{ secrets.FLY_API_TOKEN }}
+          APP_VAR: ${{ vars.FLY_APP_NAME }}
+        run: |
+          if [ -z "$RAW_TOKEN" ]; then echo "ready=false" >> "$GITHUB_OUTPUT"; exit 0; fi
+          token=$(printf '%s' "$RAW_TOKEN" | tr -d '\r\n' | sed -E 's/^[[:space:]]*(FlyV1)?[[:space:]]*/FlyV1 /')
+          echo "::add-mask::$token"
+          echo "FLY_API_TOKEN=$token" >> "$GITHUB_ENV"
+          echo "APP=${APP_VAR:-$(sed -nE 's/^app *= *"([^"]+)".*/\1/p' backend/fly.toml)}" >> "$GITHUB_ENV"
+          echo "ready=true" >> "$GITHUB_OUTPUT"
+      - uses: actions/download-artifact@v4
+        if: steps.setup.outputs.ready == 'true'
+        with:
+          name: pickup-debug-apk
+          path: apk
+      - uses: superfly/flyctl-actions/setup-flyctl@master
+        if: steps.setup.outputs.ready == 'true'
+      - name: Upload the APK to the server
+        if: steps.setup.outputs.ready == 'true'
+        run: |
+          admin=$(flyctl ssh console --app "$APP" -C "printenv ADMIN_TOKEN" 2>/dev/null | tr -d '\r' | grep -v '^$' | tail -n1)
+          [ -n "$admin" ] || { echo "::error::Couldn't read the server's admin token. Is the server deployed?"; exit 1; }
+          echo "::add-mask::$admin"
+          version="$(sed -nE 's/.*versionName = "([^"]+)".*/\1/p' android/app/build.gradle.kts)-${GITHUB_RUN_NUMBER}"
+          curl -fsS -X PUT "https://$APP.fly.dev/admin/apk?version=$version" -H "X-Admin-Token: $admin" \
+            -H "Content-Type: application/vnd.android.package-archive" --data-binary @apk/app-debug.apk
+          echo
+          echo "Published version $version: https://$APP.fly.dev/download/android"

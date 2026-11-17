@@ -80,6 +80,8 @@ class Settings(BaseSettings):
 
     # --- Storage --------------------------------------------------------------
     recordings_dir: str = "./recordings"
+    downloads_dir: str = "./downloads"  # the latest Android APK, served at /download/android
+    ios_testflight_url: str | None = None  # public TestFlight link, shown on the home page
     s3_bucket: str | None = None
     s3_region: str | None = None
     s3_endpoint_url: str | None = None

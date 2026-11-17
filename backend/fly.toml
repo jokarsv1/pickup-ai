@@ -11,6 +11,7 @@ primary_region = "sin"  # Singapore: Fly.io's closest region to India (it has no
   ENV = "prod"
   DATABASE_URL = "sqlite+aiosqlite:////data/pickup.db"
   RECORDINGS_DIR = "/data/recordings"
+  DOWNLOADS_DIR = "/data/downloads"
 
 [http_service]
   internal_port = 8000

@@ -20,7 +20,7 @@ PAGE = """<!doctype html><html lang="en"><head><meta charset="utf-8">
 <style>
 body{{font:16px/1.65 system-ui,-apple-system,Segoe UI,Roboto,sans-serif;max-width:720px;margin:0 auto;padding:32px 20px;color:#1a1c22;background:#f8f6f1}}
 h1{{font-size:30px;margin:0 0 4px}}h2{{font-size:19px;margin:32px 0 8px}}p,li{{color:#33363f}}.muted{{color:#6b6e78;font-size:14px}}
-a{{color:#2747c9}}@media (prefers-color-scheme:dark){{body{{background:#111318;color:#e3e2e8}}p,li{{color:#c4c6d0}}a{{color:#b8c6ff}}}}
+a{{color:#2747c9}}.btn{{display:inline-block;margin:16px 12px 4px 0;padding:14px 22px;border-radius:999px;background:#2747c9;color:#fff;text-decoration:none;font-weight:600}}@media (prefers-color-scheme:dark){{body{{background:#111318;color:#e3e2e8}}p,li{{color:#c4c6d0}}a{{color:#b8c6ff}}}}
 </style></head><body>{body}</body></html>"""
 
 
@@ -159,12 +159,38 @@ HOME = """
 <h1>Pickup</h1>
 <p>An AI assistant that answers the calls you can't or don't want to take, in Hindi, English and
 Hinglish, and tells you who called and why.</p>
-<p class="muted">This is the Pickup server. It's running.</p>
+{downloads}
+<p class="muted">Pickup is in private beta: you need an invite to sign in.</p>
 <p><a href="/legal/privacy">Privacy Policy</a> · <a href="/legal/terms">Terms of Service</a> ·
 <a href="mailto:{email}">{email}</a></p>
 """
 
+BUTTON = '<a class="btn" href="{href}">{label}</a>'
+
+
+def _downloads() -> str:
+    from app.downloads import apk_info
+
+    parts = []
+    info = apk_info()
+    if info:
+        mb = info["size"] / (1024 * 1024)
+        parts.append(
+            BUTTON.format(href="/download/android", label="Download for Android")
+            + f'<p class="muted">Version {escape(str(info["version"]))} · {mb:.0f} MB. After it downloads, open it and allow '
+            "installs from your browser when asked. Android 10 or newer.</p>"
+        )
+    testflight = get_settings().ios_testflight_url
+    if testflight and testflight.startswith("https://testflight.apple.com/"):
+        parts.append(
+            BUTTON.format(href=escape(testflight), label="Get it on iPhone (TestFlight)")
+            + '<p class="muted">Install Apple\'s TestFlight app first, then open this link on your iPhone.</p>'
+        )
+    if not parts:
+        return '<p class="muted">The apps aren\'t published yet.</p>'
+    return "\n".join(parts)
+
 
 @router.get("/", response_class=HTMLResponse)
 async def home() -> HTMLResponse:
-    return HTMLResponse(PAGE.format(title="AI call assistant", body=HOME.format(**_details())))
+    return HTMLResponse(PAGE.format(title="AI call assistant", body=HOME.format(downloads=_downloads(), **_details())))
