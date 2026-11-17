@@ -3,38 +3,31 @@
 Everything that can be built without your accounts, money or signature is built and tested.
 This is the complete list of what's left, in the order that unblocks the most.
 
-Every key goes into `backend/.env` (copy `backend/.env.example`). Nothing needs a code change.
+> **No terminal? Start with [guides/START-HERE.md](guides/START-HERE.md).** It covers the same steps
+> using only websites: GitHub builds the app, deploys the server to Fly.io (about $7/month), and
+> keys go into GitHub's encrypted secrets.
+
+Running it yourself instead: every key goes into `backend/.env` (copy `backend/.env.example`).
+Nothing needs a code change.
 
 | # | What | Unblocks | Where it goes |
 |---|------|----------|---------------|
-| 0 | GitHub repo `pickup-ai` | Pushing the code; Android builds in CI | `git remote` |
+| 0 | ~~GitHub repo `pickup-ai`~~ Done | Android builds and backend tests in CI | |
 | 1 | Anthropic API key | Live call brain, summaries, chat; the eval suite | `ANTHROPIC_API_KEY` |
 | 2 | Sarvam AI key | Speech-to-text and voices for Indian languages | `SARVAM_API_KEY` |
 | 3 | Firebase project | Real OTP sign-in and push notifications | `google-services.json`, `FIREBASE_PROJECT_ID`, `FCM_SERVICE_ACCOUNT_FILE` |
 | 4 | A server with HTTPS | Telephony webhooks need a public URL | `PUBLIC_BASE_URL`, `DATABASE_URL`, `REDIS_URL` |
 | 5 | Exotel account and numbers | Calls actually reaching the AI | `EXOTEL_*` + flows |
 | 6 | Google Play Console | Publishing and subscriptions | Play Console + `GOOGLE_PLAY_SERVICE_ACCOUNT_FILE` |
-| 7 | Legal pages and policies | Play Store approval, user trust | Hosted URLs |
+| 7 | ~~Legal pages~~ Built; add your details | Play Store approval, user trust | `LEGAL_*`, `SUPPORT_EMAIL`, `GRIEVANCE_OFFICER` |
 
 ---
 
 ## 0. GitHub repository
 
-Cloud sessions can't create repositories, so the code is committed but not yet pushed.
-
-1. Create an empty **private** repo named `pickup-ai` at github.com/new (no README or .gitignore).
-2. Ask Claude Code to "push to jokarsv1/pickup-ai", or from a local clone of this work:
-
-```bash
-git remote add origin git@github.com:jokarsv1/pickup-ai.git
-```
-
-```bash
-git push -u origin main
-```
-
-GitHub Actions then runs the backend tests and builds the Android app. Download the debug APK from
-the run's **Artifacts** section (`pickup-debug-apk`).
+Done: the code is at `github.com/jokarsv1/pickup-ai` (private). GitHub Actions runs the backend tests
+and builds the Android app on every push. Download the debug APK from the **Android** run's
+**Artifacts** section (`pickup-debug-apk`); [guides/INSTALL-APK.md](guides/INSTALL-APK.md) shows how to install it.
 
 ## 1. Anthropic API key
 
@@ -63,21 +56,35 @@ Outside India, set `STT_PROVIDER=deepgram` and `TTS_PROVIDER=elevenlabs` or `car
 
 ## 3. Firebase (sign-in and push)
 
-1. Create a project at console.firebase.google.com.
-2. **Add an Android app** with package name `ai.pickup.app`. Add the SHA-1 and SHA-256 of your
-   debug and release signing keys (`./gradlew signingReport` in `android/` prints them).
-3. Download `google-services.json` into `android/app/`. The build picks it up automatically.
-4. **Authentication → Sign-in method → Phone**: enable it. Add a test number with a fixed code for development.
-5. **Project settings → Service accounts → Generate new private key**: save the JSON on the server
-   and set `FCM_SERVICE_ACCOUNT_FILE` to its path.
-6. Set `FIREBASE_PROJECT_ID` to the project id.
+Click-by-click version: [guides/FIREBASE.md](guides/FIREBASE.md).
 
-Until this is done, the app signs in with the development code `123456` and shows live updates
-only while it is open.
+1. Create a project at console.firebase.google.com.
+2. **Add an Android app** with package name `ai.pickup.app`. Debug builds are signed with the
+   committed key `android/keystore/debug.keystore`, so its fingerprints never change:
+   - SHA-1 `9F:13:B7:16:1D:2A:A2:A5:B3:CC:95:C1:2F:B8:C1:74:B3:63:D0:F1`
+   - SHA-256 `D6:08:AA:42:E0:7E:CD:46:F4:0C:EB:94:B7:58:96:09:83:C3:A0:CD:2B:41:4E:64:D3:DF:DA:D9:5B:1C:80:BE`
+
+   Add your release key's fingerprints too when you publish (step 6).
+3. Put `google-services.json` in `android/app/`. The build picks it up automatically.
+4. **Project settings → Service accounts → Generate new private key**: set `FCM_SERVICE_ACCOUNT_JSON`
+   to the file's contents (or save it on the server and set `FCM_SERVICE_ACCOUNT_FILE` to its path).
+5. **SMS sign-in (needs the Blaze plan):** Authentication → Sign-in method → Phone → enable, then set
+   `FIREBASE_PROJECT_ID`. Add test numbers with fixed codes for development.
+
+Until step 5, production sign-in uses the **beta login**: only numbers in `BETA_LOGIN_NUMBERS`, with the
+code in `BETA_LOGIN_CODE` (6+ digits). Without push (step 4), live updates show only while the app is open.
 
 ## 4. Hosting
 
 The backend is one Docker image (`backend/Dockerfile`). It runs migrations on start.
+
+**Cheapest path, set up already:** Fly.io in Mumbai, deployed by the **Deploy backend (Fly.io)** workflow.
+Add the `FLY_API_TOKEN` secret and `FLY_APP_NAME` variable and run it; the workflow creates the app and
+a 1 GB volume, generates `JWT_SECRET`/`ADMIN_TOKEN`/`TELEPHONY_WEBHOOK_SECRET`, copies your GitHub
+secrets to Fly and deploys. It uses SQLite on the volume (fine for one machine and a beta) at about
+$7/month. Steps: [guides/HOSTING.md](guides/HOSTING.md). Configuration: `backend/fly.toml`.
+
+Anywhere else, or when you outgrow one machine:
 
 - Pick a region near your telephony provider's media servers (Mumbai for Exotel) to keep replies fast.
 - You need Postgres, Redis (for more than one instance) and a public HTTPS URL. Render, Railway,
@@ -132,7 +139,10 @@ number's Answer URL at `https://YOUR_DOMAIN/telephony/plivo/inbound` (POST).
 
 ## 7. Legal and trust
 
-- Privacy policy and terms URLs (required by Play and Firebase).
+- Privacy policy and terms are built in, at `https://YOUR_DOMAIN/legal/privacy` and
+  `https://YOUR_DOMAIN/legal/terms` (source: `backend/app/legal.py`). Fill in `LEGAL_ENTITY_NAME`,
+  `LEGAL_ADDRESS`, `LEGAL_JURISDICTION_CITY`, `SUPPORT_EMAIL` and `GRIEVANCE_OFFICER`. Have a lawyer read
+  them before a public launch.
 - Call recording disclosure: the assistant's greeting already says calls may be recorded, and users can
   switch recording off. Check this against current Indian rules with a lawyer.
 - DPDP Act 2023: name a grievance officer, honour deletion (the app's **Delete account** already
@@ -144,7 +154,7 @@ number's Answer URL at `https://YOUR_DOMAIN/telephony/plivo/inbound` (POST).
 
 ## What already works without any of this
 
-- `docker compose up` runs the full backend. The API, the app's sign-in (code `123456`), onboarding,
-  settings, history and chat endpoints all work. Without AI keys, calls end politely instead of hanging.
-- `pytest` in `backend/` runs 14 tests covering every flow with fake telephony, push and AI.
+- `docker compose up` runs the full backend. The API, the app's sign-in (code `123456` in development),
+  onboarding, settings, history and chat endpoints all work. Without AI keys, calls end politely instead of hanging.
+- `pytest` in `backend/` runs 15 tests covering every flow with fake telephony, push and AI.
 - The Android app builds on GitHub Actions and runs against that backend. Real calls need items 1-5.

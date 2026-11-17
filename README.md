@@ -15,15 +15,20 @@ as a competitor to Equal AI.
 Pickup's call screener declines unknown callers. The carrier forwards declined calls to the user's
 own assistant number, where the voice agent answers. Details: [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).
 
+## Get it running (no terminal needed)
+
+**[docs/guides/START-HERE.md](docs/guides/START-HERE.md)**: install the test APK, add keys, deploy the
+server to Fly.io (about $7/month) and connect Firebase, all from your browser.
+
 ## Status
 
 | Built and tested | Waiting on you ([docs/SETUP.md](docs/SETUP.md)) |
 |---|---|
-| Backend API, telephony adapters, voice pipeline, summaries, assistant chat, scheduler (14 tests) | Anthropic, Sarvam, Firebase keys |
-| Android app: onboarding, screening, home, live call, detail, chat, settings, billing | Exotel account, KYC and numbers |
-| Screening rules and formatting (19 JVM unit tests) | Hosting with HTTPS |
-| Eval suite with 8 simulated-caller scenarios | Google Play Console, legal pages |
-| Docker, docker-compose, Alembic migrations, GitHub Actions | The `pickup-ai` GitHub repo |
+| Backend API, telephony adapters, voice pipeline, summaries, assistant chat, scheduler (15 tests) | Anthropic and Sarvam keys |
+| Android app: onboarding, screening, home, live call, detail, chat, settings, billing; APK built by CI | Firebase project |
+| Screening rules and formatting (19 JVM unit tests) | Fly.io account (deploy workflow is ready) |
+| Eval suite with 8 simulated-caller scenarios (manual GitHub workflow) | Exotel account, KYC and numbers |
+| Privacy policy and terms pages, beta login, Fly.io deploy workflow | Google Play Console (only for public launch and billing) |
 
 ## Quick start
 
@@ -61,7 +66,8 @@ cd backend && python -m scripts.chat_with_agent --owner "Your Name"
 
 ## Docs
 
-- [docs/SETUP.md](docs/SETUP.md): the remaining external steps, in order
+- [docs/guides/START-HERE.md](docs/guides/START-HERE.md): browser-only setup, step by step
+- [docs/SETUP.md](docs/SETUP.md): the remaining external steps, in order (developer version)
 - [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md): call flow, components, API, data
 - [docs/PRODUCT.md](docs/PRODUCT.md): positioning against Equal AI, UX principles, plans
 - [docs/RESEARCH.md](docs/RESEARCH.md): the research behind each technical decision, with sources

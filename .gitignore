@@ -18,3 +18,8 @@ android/keystore.properties
 *.iml
 # OS
 .DS_Store
+
+# Python build output
+*.egg-info/
+backend/build/
+__pycache__/
