@@ -1,3 +1,4 @@
+import hmac
 from typing import Annotated
 
 from fastapi import Depends, Header, HTTPException, status
@@ -29,5 +30,5 @@ CurrentUser = Annotated[User, Depends(current_user)]
 
 async def require_admin(x_admin_token: Annotated[str | None, Header()] = None) -> None:
     token = get_settings().admin_token
-    if not token or x_admin_token != token:
+    if not token or not x_admin_token or not hmac.compare_digest(x_admin_token.encode(), token.encode()):
         raise HTTPException(status.HTTP_403_FORBIDDEN, "Admin token required")

@@ -14,12 +14,13 @@ from loguru import logger
 from pipecat.adapters.llm.schemas.function_schema import FunctionSchema
 from pipecat.adapters.llm.schemas.tools_schema import ToolsSchema
 from pipecat.audio.vad.silero import SileroVADAnalyzer
-from pipecat.frames.frames import EndFrame, FunctionCallResultProperties, LLMMessagesAppendFrame, TTSSpeakFrame
+from pipecat.frames.frames import EndFrame, Frame, FunctionCallResultProperties, LLMMessagesAppendFrame, TranscriptionFrame, TTSSpeakFrame
 from pipecat.pipeline.pipeline import Pipeline
 from pipecat.pipeline.worker import PipelineParams, PipelineWorker
 from pipecat.processors.aggregators.llm_context import LLMContext
 from pipecat.processors.aggregators.llm_response_universal import LLMContextAggregatorPair, LLMUserAggregatorParams
 from pipecat.processors.audio.audio_buffer_processor import AudioBufferProcessor
+from pipecat.processors.frame_processor import FrameDirection, FrameProcessor
 from pipecat.services.llm_service import FunctionCallParams
 from pipecat.transports.websocket.fastapi import FastAPIWebsocketParams, FastAPIWebsocketTransport
 from pipecat.workers.runner import WorkerRunner
@@ -98,6 +99,20 @@ async def load_context(call_id: str) -> tuple[Call, User, Line | None, CallConte
     return call, user, line, ctx, prefs, ent.live_controls
 
 
+class CallerTextGuard(FrameProcessor):
+    """Strips square brackets from what the caller says.
+
+    Notes from the owner reach the model as "[Asha says: ...]"; without this a caller could
+    try to pass their own words off as the owner's.
+    """
+
+    async def process_frame(self, frame: Frame, direction: FrameDirection) -> None:
+        await super().process_frame(frame, direction)
+        if isinstance(frame, TranscriptionFrame) and frame.text:
+            frame.text = frame.text.replace("[", "(").replace("]", ")")
+        await self.push_frame(frame, direction)
+
+
 class VoiceSession:
     def __init__(self, websocket: WebSocket, call_id: str, transport_type: str, call_data: Any) -> None:
         self.ws = websocket
@@ -141,6 +156,7 @@ class VoiceSession:
             [
                 transport.input(),
                 make_stt(ctx.languages),
+                CallerTextGuard(),
                 aggregators.user(),
                 llm,
                 make_tts(prefs.voice, ctx.languages),

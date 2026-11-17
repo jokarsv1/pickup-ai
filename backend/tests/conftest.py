@@ -100,6 +100,9 @@ async def app_env() -> AsyncIterator[SimpleNamespace]:
     import app.services.calls as calls_module
 
     calls_module._live_throttle = None
+    from app import ratelimit
+
+    ratelimit.reset()
     provider = FakeProvider()
     set_provider("twilio", provider)
     app = create_app()

@@ -1,5 +1,6 @@
 """Webhooks and media streams from the telephony provider. Not part of the public API."""
 
+import hmac
 from typing import Any
 
 from fastapi import APIRouter, HTTPException, Request, Response, WebSocket, status
@@ -46,7 +47,7 @@ def _check_token(call_id: str, token: str) -> None:
 
 
 def _check_secret(secret: str) -> None:
-    if secret != get_settings().telephony_webhook_secret:
+    if not hmac.compare_digest(secret.encode(), get_settings().telephony_webhook_secret.encode()):
         raise HTTPException(status.HTTP_403_FORBIDDEN, "Bad secret")
 
 

@@ -308,8 +308,15 @@ class OnboardingViewModel(private val graph: AppGraph, private val forcedStep: S
     }
 
     fun setServer(url: String) {
+        val trimmed = url.trim().trimEnd('/')
+        // Only HTTPS, except local development servers, so nobody can be talked into an insecure server.
+        val local = Regex("^http://(10\\.0\\.2\\.2|localhost|127\\.0\\.0\\.1)(:\\d+)?$")
+        if (trimmed.isNotEmpty() && !trimmed.startsWith("https://") && !local.matches(trimmed)) {
+            _state.update { it.copy(error = "Use an https:// address") }
+            return
+        }
         viewModelScope.launch {
-            graph.store.saveServer(url.trim().ifBlank { null })
+            graph.store.saveServer(trimmed.ifBlank { null })
             val config = runCatching { repo.config() }.getOrNull()
             _state.update { it.copy(config = config, error = if (config == null) "Can't reach that server" else null) }
         }

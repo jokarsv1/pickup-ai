@@ -24,6 +24,9 @@ class Settings(BaseSettings):
     refresh_token_ttl_days: int = 60
     admin_token: str | None = None  # protects /admin endpoints
     default_country: str = "IN"  # used to parse local phone numbers
+    outbound_countries: list[str] = ["IN"]  # the assistant only calls numbers in these countries
+    outbound_daily_limit: int = 10  # calls the assistant may place for one user per 24 hours
+    outbound_pending_limit: int = 5  # calls waiting to be placed at once
     cors_origins: list[str] = []
 
     # --- Auth -----------------------------------------------------------------

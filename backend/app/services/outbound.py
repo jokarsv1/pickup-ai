@@ -4,12 +4,51 @@ import asyncio
 from datetime import datetime, timedelta
 
 from loguru import logger
-from sqlalchemy import select, update
+import phonenumbers
+from sqlalchemy import func, select, update
+from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.config import get_settings
 from app.db import sessionmaker, utcnow
 from app.events import bus, user_topic
 from app.models import Call, Line, NumberPoolEntry, OutboundTask
 from app.telephony.registry import get_provider
+
+
+# Number types the assistant may call: no premium-rate, shared-cost or other paid services.
+_CALLABLE_TYPES = {
+    phonenumbers.PhoneNumberType.MOBILE,
+    phonenumbers.PhoneNumberType.FIXED_LINE,
+    phonenumbers.PhoneNumberType.FIXED_LINE_OR_MOBILE,
+    phonenumbers.PhoneNumberType.TOLL_FREE,
+}
+
+
+async def outbound_problem(session: AsyncSession, user_id: str, e164: str) -> str | None:
+    """Why the assistant can't call this number for this user now, or None if it can.
+
+    Guards against toll fraud and misuse: only ordinary numbers in allowed countries, and a
+    daily and pending cap per user.
+    """
+    s = get_settings()
+    try:
+        parsed = phonenumbers.parse(e164, None)
+    except phonenumbers.NumberParseException:
+        return "That phone number isn't valid."
+    if phonenumbers.region_code_for_number(parsed) not in s.outbound_countries:
+        return "Your assistant can only call Indian numbers for now."
+    if phonenumbers.number_type(parsed) not in _CALLABLE_TYPES:
+        return "Your assistant can't call premium or special-rate numbers."
+    since = utcnow() - timedelta(hours=24)
+    today = await session.scalar(select(func.count()).select_from(OutboundTask).where(OutboundTask.user_id == user_id, OutboundTask.created_at >= since))
+    if (today or 0) >= s.outbound_daily_limit:
+        return f"Your assistant can place up to {s.outbound_daily_limit} calls a day. Try again tomorrow."
+    pending = await session.scalar(
+        select(func.count()).select_from(OutboundTask).where(OutboundTask.user_id == user_id, OutboundTask.state.in_(("scheduled", "dialing")))
+    )
+    if (pending or 0) >= s.outbound_pending_limit:
+        return f"You already have {s.outbound_pending_limit} calls waiting. Cancel one or wait for them to finish."
+    return None
 
 RETRY_DELAY = timedelta(minutes=5)
 MAX_ATTEMPTS = 3

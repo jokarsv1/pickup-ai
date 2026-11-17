@@ -18,7 +18,9 @@ from app.deps import CurrentUser, Session
 from app.entitlements import entitlement_for
 from app.events import bus, user_topic
 from app.models import ChatMessage, OutboundTask, Purchase
+from app import ratelimit
 from app.phone import normalize
+from app.services.outbound import outbound_problem
 from app.schemas import ChatIn, ChatMessageOut, ChatReply, EntitlementOut, OutboundIn, OutboundOut, PlayPurchaseIn
 from app.security import AuthError, decode_ws_ticket
 
@@ -44,6 +46,7 @@ async def chat_history(session: Session, user: CurrentUser, limit: int = Query(5
 
 @router.post("/assistant/chat", response_model=ChatReply)
 async def chat(body: ChatIn, session: Session, user: CurrentUser) -> ChatReply:
+    ratelimit.check(f"chat:{user.id}", limit=30, window_seconds=600)
     reply, actions = await run_chat(session, user, body.text.strip())
     history = await chat_history(session, user, limit=50)
     return ChatReply(reply=reply, client_actions=actions, messages=history)
@@ -70,6 +73,9 @@ async def create_outbound(body: OutboundIn, session: Session, user: CurrentUser)
     number = normalize(body.to_number)
     if not number:
         raise HTTPException(status.HTTP_400_BAD_REQUEST, "Enter a valid phone number")
+    problem = await outbound_problem(session, user.id, number)
+    if problem:
+        raise HTTPException(status.HTTP_400_BAD_REQUEST, problem)
     when = body.scheduled_at or utcnow()
     if when.tzinfo is None:
         when = when.replace(tzinfo=UTC)

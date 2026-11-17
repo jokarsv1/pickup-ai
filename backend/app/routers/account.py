@@ -1,16 +1,33 @@
 """Sign-in, profile, devices, plan and the WebSocket ticket."""
 
+import hashlib
 import hmac
 from datetime import UTC, datetime, timedelta
 
-from fastapi import APIRouter, HTTPException, status
+from fastapi import APIRouter, HTTPException, Request, status
 from sqlalchemy import delete, func, select
 
+from app import ratelimit
 from app.config import get_settings
 from app.db import utcnow
 from app.deps import CurrentUser, Session
 from app.entitlements import entitlement_for
-from app.models import AssistantSettings, Call, Device, Line, RefreshToken, User
+from app.models import (
+    AssistantSettings,
+    Call,
+    CallAction,
+    ChatMessage,
+    ContactEntry,
+    Device,
+    Line,
+    OutboundTask,
+    Purchase,
+    RefreshToken,
+    Rule,
+    ScreeningHint,
+    TranscriptSegment,
+    User,
+)
 from app.phone import normalize
 from app.schemas import (
     DeviceIn,
@@ -26,6 +43,7 @@ from app.schemas import (
 )
 from app.security import AuthError, create_access_token, create_refresh_token_id, create_ws_ticket, verify_firebase_phone_token
 from app.services.lines import release_line
+from app.storage import delete_recording
 from app.voice.services import missing_keys
 
 router = APIRouter()
@@ -69,6 +87,11 @@ async def public_config() -> PublicConfig:
     )
 
 
+def _token_key(refresh_token: str) -> str:
+    """Refresh tokens are stored hashed, so a copy of the database can't be used to sign in."""
+    return hashlib.sha256(refresh_token.encode()).hexdigest()
+
+
 async def _issue(session: Session, phone: str) -> TokensOut:
     s = get_settings()
     user = await session.scalar(select(User).where(User.phone_e164 == phone))
@@ -79,7 +102,7 @@ async def _issue(session: Session, phone: str) -> TokensOut:
         await session.flush()
         session.add(AssistantSettings(user_id=user.id))
     refresh_id = create_refresh_token_id()
-    session.add(RefreshToken(id=refresh_id, user_id=user.id, expires_at=utcnow() + timedelta(days=s.refresh_token_ttl_days)))
+    session.add(RefreshToken(id=_token_key(refresh_id), user_id=user.id, expires_at=utcnow() + timedelta(days=s.refresh_token_ttl_days)))
     await session.commit()
     return TokensOut(
         access_token=create_access_token(user.id),
@@ -91,7 +114,8 @@ async def _issue(session: Session, phone: str) -> TokensOut:
 
 
 @router.post("/v1/auth/firebase", response_model=TokensOut)
-async def login_firebase(body: FirebaseLogin, session: Session) -> TokensOut:
+async def login_firebase(body: FirebaseLogin, session: Session, request: Request) -> TokensOut:
+    ratelimit.check(f"login-ip:{ratelimit.client_ip(request)}", limit=30, window_seconds=900)
     try:
         phone = await verify_firebase_phone_token(body.id_token)
     except AuthError as exc:
@@ -103,10 +127,13 @@ async def login_firebase(body: FirebaseLogin, session: Session) -> TokensOut:
 
 
 @router.post("/v1/auth/dev", response_model=TokensOut)
-async def login_dev(body: DevLogin, session: Session) -> TokensOut:
+async def login_dev(body: DevLogin, session: Session, request: Request) -> TokensOut:
     """Code login without SMS: any number in development, allowlisted beta numbers in production."""
     s = get_settings()
     phone = normalize(body.phone)
+    # Code guessing: 5 tries per number and 20 per address every 15 minutes.
+    ratelimit.check(f"login-ip:{ratelimit.client_ip(request)}", limit=20, window_seconds=900)
+    ratelimit.check(f"login-phone:{phone or body.phone}", limit=5, window_seconds=900)
     dev_ok = s.dev_auth_enabled and s.is_dev
     beta_ok = s.beta_login_enabled and phone in s.beta_numbers
     if not (dev_ok or beta_ok):
@@ -120,10 +147,16 @@ async def login_dev(body: DevLogin, session: Session) -> TokensOut:
 
 
 @router.post("/v1/auth/refresh", response_model=TokensOut)
-async def refresh(body: RefreshIn, session: Session) -> TokensOut:
-    token = await session.get(RefreshToken, body.refresh_token)
+async def refresh(body: RefreshIn, session: Session, request: Request) -> TokensOut:
+    ratelimit.check(f"refresh-ip:{ratelimit.client_ip(request)}", limit=60, window_seconds=900)
+    token = await session.get(RefreshToken, _token_key(body.refresh_token))
+    if token is not None and token.revoked:
+        # A used token came back: someone copied it. Sign this account out everywhere.
+        await session.execute(RefreshToken.__table__.update().where(RefreshToken.user_id == token.user_id).values(revoked=True))
+        await session.commit()
+        raise HTTPException(status.HTTP_401_UNAUTHORIZED, "Session expired. Sign in again.")
     expires = token.expires_at.replace(tzinfo=UTC) if token and token.expires_at.tzinfo is None else (token.expires_at if token else None)
-    if token is None or token.revoked or expires is None or expires < datetime.now(UTC):
+    if token is None or expires is None or expires < datetime.now(UTC):
         raise HTTPException(status.HTTP_401_UNAUTHORIZED, "Session expired. Sign in again.")
     token.revoked = True  # rotate on every use
     user = await session.get(User, token.user_id)
@@ -134,7 +167,7 @@ async def refresh(body: RefreshIn, session: Session) -> TokensOut:
 
 @router.post("/v1/auth/logout", status_code=204)
 async def logout(body: RefreshIn, session: Session, user: CurrentUser) -> None:
-    token = await session.get(RefreshToken, body.refresh_token)
+    token = await session.get(RefreshToken, _token_key(body.refresh_token))
     if token and token.user_id == user.id:
         token.revoked = True
     await session.execute(delete(Device).where(Device.user_id == user.id))
@@ -164,6 +197,14 @@ async def delete_me(session: Session, user: CurrentUser) -> None:
     lines = (await session.scalars(select(Line).where(Line.user_id == user.id))).all()
     for line in lines:
         await release_line(session, line)
+    for key in (await session.scalars(select(Call.recording_key).where(Call.user_id == user.id, Call.recording_key.is_not(None)))).all():
+        await delete_recording(key)
+    # Foreign keys cascade these too; deleting explicitly keeps the promise on any database.
+    call_ids = select(Call.id).where(Call.user_id == user.id)
+    await session.execute(delete(TranscriptSegment).where(TranscriptSegment.call_id.in_(call_ids)))
+    await session.execute(delete(CallAction).where(CallAction.user_id == user.id))
+    for model in (Call, ChatMessage, OutboundTask, Rule, ContactEntry, ScreeningHint, Device, RefreshToken, Purchase, Line, AssistantSettings):
+        await session.execute(delete(model).where(model.user_id == user.id))
     await session.flush()
     await session.delete(user)
     await session.commit()

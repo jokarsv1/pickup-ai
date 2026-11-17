@@ -39,9 +39,19 @@ async def retention_loop() -> None:
         await asyncio.sleep(3600)
 
 
+def _guessable(code: str) -> bool:
+    digits = [int(ch) for ch in code if ch.isdigit()]
+    if len(set(code)) <= 2 or code in {"123123", "121212", "112233", "123321", "147258", "159753"}:
+        return True
+    steps = {b - a for a, b in zip(digits, digits[1:])}
+    return len(digits) == len(code) and steps in ({1}, {-1})
+
+
 @contextlib.asynccontextmanager
 async def lifespan(_app: FastAPI) -> AsyncIterator[None]:
     s = get_settings()
+    if s.beta_login_enabled and _guessable(s.beta_login_code or ""):
+        logger.warning("BETA_LOGIN_CODE is easy to guess. Set a random 6+ digit code: anyone who knows a beta number could sign in.")
     if s.env != "prod":
         await create_all()  # production runs "alembic upgrade head" (see Dockerfile)
     await bus.start(s.redis_url)
@@ -60,7 +70,20 @@ async def lifespan(_app: FastAPI) -> AsyncIterator[None]:
 
 def create_app() -> FastAPI:
     s = get_settings()
-    app = FastAPI(title="Pickup API", version="0.1.0", lifespan=lifespan)
+    # The API explorer (/docs) is for development; production doesn't advertise its endpoints.
+    docs = {} if s.is_dev else {"docs_url": None, "redoc_url": None, "openapi_url": None}
+    app = FastAPI(title="Pickup API", version="0.1.0", lifespan=lifespan, **docs)
+
+    @app.middleware("http")
+    async def security_headers(request, call_next):
+        response = await call_next(request)
+        response.headers.setdefault("X-Content-Type-Options", "nosniff")
+        response.headers.setdefault("Referrer-Policy", "no-referrer")
+        response.headers.setdefault("X-Frame-Options", "DENY")
+        if not s.is_dev:
+            response.headers.setdefault("Strict-Transport-Security", "max-age=31536000")
+        return response
+
     if s.cors_origins:
         app.add_middleware(CORSMiddleware, allow_origins=s.cors_origins, allow_methods=["*"], allow_headers=["*"])
     for module in (account, setup, calls, assistant_chat, telephony, admin, legal):

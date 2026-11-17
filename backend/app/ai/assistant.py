@@ -17,6 +17,7 @@ from app.db import utcnow
 from app.entitlements import entitlement_for
 from app.models import AssistantSettings, Call, ChatMessage, OutboundTask, User
 from app.phone import normalize, pretty
+from app.services.outbound import outbound_problem
 
 IST = ZoneInfo("Asia/Kolkata")
 MAX_STEPS = 6
@@ -117,6 +118,9 @@ async def _run_tool(session: AsyncSession, user: User, name: str, args: dict[str
         number = normalize(args.get("to_number"))
         if not number:
             return "That phone number isn't valid. Ask the user for the full number."
+        problem = await outbound_problem(session, user.id, number)
+        if problem:
+            return problem + " Tell the user."
         when = utcnow()
         if args.get("when"):
             try:

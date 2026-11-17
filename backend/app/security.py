@@ -52,7 +52,7 @@ def decode_ws_ticket(token: str) -> str:
         payload = jwt.decode(token, get_settings().jwt_secret, algorithms=[ALGORITHM])
     except jwt.PyJWTError as exc:
         raise AuthError("Invalid or expired ticket") from exc
-    if payload.get("typ") not in ("ws", "access"):
+    if payload.get("typ") != "ws":  # access tokens never go in URLs
         raise AuthError("Invalid ticket")
     return str(payload["sub"])
 

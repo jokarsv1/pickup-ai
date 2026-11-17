@@ -265,3 +265,45 @@ async def test_home_page(app_env):
     resp = await app_env.client.get("/")
     assert resp.status_code == 200
     assert "Pickup" in resp.text and "/legal/privacy" in resp.text
+
+
+async def test_security_guards(app_env):
+    """Code guessing is rate limited, refresh tokens rotate with reuse detection, outbound calls
+    are limited to ordinary Indian numbers, and deleting an account deletes its calls."""
+    from sqlalchemy import func, select
+
+    from app.db import sessionmaker
+    from app.models import Call, TranscriptSegment
+
+    c = app_env.client
+    for _ in range(5):
+        assert (await c.post("/v1/auth/dev", json={"phone": "9811100002", "code": "000000"})).status_code == 401
+    assert (await c.post("/v1/auth/dev", json={"phone": "9811100002", "code": "123456"})).status_code == 429
+
+    first = (await c.post("/v1/auth/dev", json={"phone": "9811100003", "code": "123456"})).json()
+    second = (await c.post("/v1/auth/refresh", json={"refresh_token": first["refresh_token"]})).json()
+    assert "access_token" in second
+    assert (await c.post("/v1/auth/refresh", json={"refresh_token": first["refresh_token"]})).status_code == 401
+    # Reusing a spent token signs the account out everywhere, including the newest session.
+    assert (await c.post("/v1/auth/refresh", json={"refresh_token": second["refresh_token"]})).status_code == 401
+
+    headers = {"Authorization": f"Bearer {second['access_token']}"}
+    abroad = await c.post("/v1/outbound", json={"to_number": "+14155552671", "goal": "Ask about the order"}, headers=headers)
+    assert abroad.status_code == 400 and "Indian" in abroad.json()["detail"]
+    for _ in range(5):
+        ok = await c.post("/v1/outbound", json={"to_number": "+919876543210", "goal": "Ask about the order", "scheduled_at": "2030-01-01T10:00:00+05:30"}, headers=headers)
+        assert ok.status_code == 200
+    too_many = await c.post("/v1/outbound", json={"to_number": "+919876543210", "goal": "Ask about the order"}, headers=headers)
+    assert too_many.status_code == 400 and "waiting" in too_many.json()["detail"]
+
+    me = (await c.get("/v1/me", headers=headers)).json()
+    async with sessionmaker()() as session:
+        call = Call(user_id=me["id"], provider="twilio", from_number="+919800011122", state="summarized", summary="Test")
+        session.add(call)
+        await session.flush()
+        session.add(TranscriptSegment(call_id=call.id, seq=0, speaker="caller", text="hello"))
+        await session.commit()
+    assert (await c.delete("/v1/me", headers=headers)).status_code == 204
+    async with sessionmaker()() as session:
+        assert await session.scalar(select(func.count()).select_from(Call).where(Call.user_id == me["id"])) == 0
+        assert await session.scalar(select(func.count()).select_from(TranscriptSegment)) == 0

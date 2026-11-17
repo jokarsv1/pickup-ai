@@ -1,7 +1,7 @@
 from collections.abc import AsyncIterator
 from datetime import UTC, datetime
 
-from sqlalchemy import DateTime
+from sqlalchemy import DateTime, event
 from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession, async_sessionmaker, create_async_engine
 from sqlalchemy.orm import DeclarativeBase
 from sqlalchemy.types import TypeDecorator
@@ -52,6 +52,14 @@ def init_engine(url: str | None = None) -> AsyncEngine:
     if url.startswith("sqlite"):
         kwargs = {"connect_args": {"check_same_thread": False}}
     _engine = create_async_engine(url, **kwargs)
+    if url.startswith("sqlite"):
+        # SQLite ignores foreign keys (and so ON DELETE CASCADE) unless each connection opts in.
+        @event.listens_for(_engine.sync_engine, "connect")
+        def _sqlite_foreign_keys(dbapi_connection, _record) -> None:
+            cursor = dbapi_connection.cursor()
+            cursor.execute("PRAGMA foreign_keys=ON")
+            cursor.close()
+
     _sessionmaker = async_sessionmaker(_engine, expire_on_commit=False)
     return _engine
 
