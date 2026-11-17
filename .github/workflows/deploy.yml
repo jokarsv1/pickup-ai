@@ -87,6 +87,7 @@ jobs:
         run: |
           for i in $(seq 1 20); do curl -fsS "https://$APP.fly.dev/healthz" >/dev/null 2>&1 && break; sleep 6; done
           curl -fsS "https://$APP.fly.dev/healthz" && echo && curl -fsS "https://$APP.fly.dev/v1/config" && echo
+          curl -fsS "https://$APP.fly.dev/" | grep -q "Pickup" && echo "Home page: OK"
           echo "Server: https://$APP.fly.dev"
       - name: Check the API keys (report only)
         if: steps.setup.outputs.ready == 'true'

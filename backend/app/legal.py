@@ -1,4 +1,4 @@
-"""Privacy policy and terms of service, served at /legal/privacy and /legal/terms.
+"""Public pages: a home page at /, and the privacy policy and terms at /legal/privacy and /legal/terms.
 
 Written for an India-first launch (Digital Personal Data Protection Act, 2023) and Google Play's
 requirements. Company details come from LEGAL_* settings. Have a lawyer review before launch.
@@ -153,3 +153,18 @@ async def terms() -> HTMLResponse:
     d = _details()
     d["address_city"] = escape(get_settings().legal_jurisdiction_city)
     return HTMLResponse(PAGE.format(title="Terms of Service", body=TERMS.format(**d)))
+
+
+HOME = """
+<h1>Pickup</h1>
+<p>An AI assistant that answers the calls you can't or don't want to take, in Hindi, English and
+Hinglish, and tells you who called and why.</p>
+<p class="muted">This is the Pickup server. It's running.</p>
+<p><a href="/legal/privacy">Privacy Policy</a> · <a href="/legal/terms">Terms of Service</a> ·
+<a href="mailto:{email}">{email}</a></p>
+"""
+
+
+@router.get("/", response_class=HTMLResponse)
+async def home() -> HTMLResponse:
+    return HTMLResponse(PAGE.format(title="AI call assistant", body=HOME.format(**_details())))

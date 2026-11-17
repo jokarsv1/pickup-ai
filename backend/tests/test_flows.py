@@ -256,3 +256,9 @@ async def test_legal_pages_and_beta_login(app_env):
         assert wrong_code.status_code == 401 and not_listed.status_code == 403
     finally:
         s.env, s.beta_login_numbers, s.beta_login_code = "test", "", None
+
+
+async def test_home_page(app_env):
+    resp = await app_env.client.get("/")
+    assert resp.status_code == 200
+    assert "Pickup" in resp.text and "/legal/privacy" in resp.text
