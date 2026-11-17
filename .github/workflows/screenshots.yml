@@ -1,0 +1,75 @@
+name: App screenshots
+
+# Runs the Android app on an emulator against a local test server filled with demo calls
+# (backend/scripts/seed_demo.py), walks through the main screens
+# (android/app/src/androidTest/.../ScreenshotTour.kt) and publishes the pictures to the
+# "screenshots" branch. Uses no real accounts or keys.
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  screenshots:
+    runs-on: ubuntu-latest
+    timeout-minutes: 50
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "21"
+      - uses: gradle/actions/setup-gradle@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: backend/pyproject.toml
+
+      - name: Start a local test server with demo data
+        working-directory: backend
+        env:
+          ENV: dev
+          DATABASE_URL: sqlite+aiosqlite:///./demo.db
+        run: |
+          pip install .
+          python -m scripts.seed_demo --phone +919800000002 --pool +918047491800 +918047491801
+          nohup uvicorn app.main:app --host 0.0.0.0 --port 8000 > ../server.log 2>&1 &
+          for i in $(seq 1 40); do curl -fsS localhost:8000/healthz >/dev/null 2>&1 && break; sleep 2; done
+          curl -fsS localhost:8000/v1/config
+
+      - name: Build the app and the screenshot tour
+        working-directory: android
+        run: ./gradlew --no-configuration-cache assembleDebug assembleDebugAndroidTest -Ppickup.apiBaseUrl=http://10.0.2.2:8000
+
+      - name: Enable hardware acceleration for the emulator
+        run: |
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+          sudo udevadm control --reload-rules
+          sudo udevadm trigger --name-match=kvm
+
+      - name: Run the tour on an emulator
+        uses: reactivecircus/android-emulator-runner@v2
+        with:
+          api-level: 35
+          arch: x86_64
+          target: google_apis
+          profile: pixel_7
+          disable-animations: true
+          emulator-options: -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -camera-back none
+          script: bash .github/scripts/screenshot_tour.sh
+
+      - name: Publish to the screenshots branch
+        if: always()
+        env:
+          TOKEN: ${{ github.token }}
+        run: |
+          mkdir -p out && cp server.log out/ 2>/dev/null || true
+          cd out
+          git init -q -b screenshots
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          git commit -qm "App screenshots from ${GITHUB_SHA::7}"
+          git push -qf "https://x-access-token:${TOKEN}@github.com/${GITHUB_REPOSITORY}.git" screenshots
