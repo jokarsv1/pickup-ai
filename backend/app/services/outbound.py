@@ -4,7 +4,7 @@ import asyncio
 from datetime import datetime, timedelta
 
 from loguru import logger
-from sqlalchemy import select
+from sqlalchemy import select, update
 
 from app.db import sessionmaker, utcnow
 from app.events import bus, user_topic
@@ -17,8 +17,15 @@ MAX_ATTEMPTS = 3
 
 async def dial(task_id: str) -> None:
     async with sessionmaker()() as session:
+        # Atomic claim: only one instance moves a task out of "scheduled", so it is dialed once.
+        claimed = await session.execute(
+            update(OutboundTask).where(OutboundTask.id == task_id, OutboundTask.state == "scheduled").values(state="dialing")
+        )
+        await session.commit()
+        if claimed.rowcount != 1:
+            return
         task = await session.get(OutboundTask, task_id)
-        if task is None or task.state not in ("scheduled",):
+        if task is None:
             return
         line = await session.scalar(select(Line).where(Line.user_id == task.user_id, Line.status != "released").order_by(Line.created_at.desc()))
         if line is None:

@@ -1,0 +1,29 @@
+Metadata-Version: 2.4
+Name: pickup-backend
+Version: 0.1.0
+Summary: Pickup: an AI assistant that answers your calls. API, telephony webhooks and the real-time voice agent.
+Requires-Python: >=3.12
+Requires-Dist: fastapi>=0.163
+Requires-Dist: uvicorn[standard]>=0.38
+Requires-Dist: sqlalchemy[asyncio]>=2.1
+Requires-Dist: asyncpg>=0.31
+Requires-Dist: aiosqlite>=0.21
+Requires-Dist: alembic>=1.17
+Requires-Dist: pydantic>=2.14
+Requires-Dist: pydantic-settings>=2.16
+Requires-Dist: pyjwt>=2.10
+Requires-Dist: httpx>=0.28
+Requires-Dist: anthropic>=2.9
+Requires-Dist: redis>=8.0
+Requires-Dist: google-auth>=2.62
+Requires-Dist: phonenumbers>=9.0
+Requires-Dist: twilio>=9.13
+Requires-Dist: plivo>=4.63
+Requires-Dist: boto3>=1.40
+Requires-Dist: python-multipart>=0.0.20
+Requires-Dist: loguru>=0.7
+Requires-Dist: pipecat-ai[anthropic,cartesia,deepgram,elevenlabs,sarvam,silero,websocket]>=1.16
+Provides-Extra: dev
+Requires-Dist: pytest>=8; extra == "dev"
+Requires-Dist: pytest-asyncio>=1.0; extra == "dev"
+Requires-Dist: respx>=0.22; extra == "dev"

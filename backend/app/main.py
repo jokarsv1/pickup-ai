@@ -41,7 +41,8 @@ async def retention_loop() -> None:
 @contextlib.asynccontextmanager
 async def lifespan(_app: FastAPI) -> AsyncIterator[None]:
     s = get_settings()
-    await create_all()
+    if s.env != "prod":
+        await create_all()  # production runs "alembic upgrade head" (see Dockerfile)
     await bus.start(s.redis_url)
     tasks: list[asyncio.Task] = []
     if s.env != "test":

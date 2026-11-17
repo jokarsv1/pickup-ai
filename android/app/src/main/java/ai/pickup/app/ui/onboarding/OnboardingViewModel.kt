@@ -115,6 +115,15 @@ class OnboardingViewModel(private val graph: AppGraph, private val forcedStep: S
             _state.update { it.copy(error = "Enter your 10-digit mobile number") }
             return
         }
+        val modes = _state.value.config?.authModes.orEmpty()
+        if (_state.value.config != null && modes.isEmpty()) {
+            _state.update { it.copy(error = "Sign-in isn't set up on this server yet.") }
+            return
+        }
+        if ("dev" !in modes && !graph.firebaseAvailable) {
+            _state.update { it.copy(error = "This build can't send codes yet: add google-services.json and rebuild.") }
+            return
+        }
         _state.update { it.copy(phoneE164 = phone, busy = true, error = null) }
         if (_state.value.useFirebase && activity != null && graph.firebaseAvailable) {
             sendFirebaseCode(activity, phone)

@@ -2,6 +2,10 @@
 // The classpath entry pins the Kotlin compiler to the same version as the Compose and
 // serialization compiler plugins, as the AGP 9 release notes describe.
 buildscript {
+    repositories {
+        google()
+        mavenCentral()
+    }
     dependencies {
         classpath("org.jetbrains.kotlin:kotlin-gradle-plugin:2.4.21")
     }
