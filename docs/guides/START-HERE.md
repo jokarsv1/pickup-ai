@@ -8,7 +8,7 @@ Do the steps in order. Each one ends with something you can check.
 | Step | Guide | Time | Cost | You'll have |
 |------|-------|------|------|-------------|
 | 1 | [API keys and beta login](API-KEYS.md) | 15 min | $5 Anthropic credit; Sarvam gives ₹100 free | The AI brain and voice |
-| 2 | [Server](HOSTING.md) | 20 min | About $7/month | Your backend online with HTTPS |
+| 2 | [Server](HOSTING.md) | 20 min | About $9/month | Your backend online with HTTPS |
 | 3 | [Install the test app](INSTALL-APK.md) | 5 min | Free | Pickup on your Android phone, signed in |
 | 4 | [Firebase](FIREBASE.md) | 20 min | Free (SMS sign-in later is pay-per-SMS) | Push notifications, and sign-in when you launch |
 | 5 | Telephony (Exotel) | A few days (KYC) | Exotel plan + numbers | Real calls reaching your assistant. See [SETUP.md §5](../SETUP.md#5-telephony-exotel-india) |

@@ -2,7 +2,7 @@
 # The server lives at https://pickup-ai-i6v0t.fly.dev. If you rename the app, change pickup.apiBaseUrl in
 # android/gradle.properties too (or set the FLY_APP_NAME and PICKUP_API_BASE_URL variables).
 app = "pickup-ai-i6v0t"
-primary_region = "bom"  # Mumbai: close to Indian callers and Exotel's media servers
+primary_region = "sin"  # Singapore: Fly.io's closest region to India (it has none in India)
 
 [build]
   dockerfile = "Dockerfile"

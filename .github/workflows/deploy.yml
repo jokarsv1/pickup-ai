@@ -46,7 +46,8 @@ jobs:
           if ! flyctl apps list --json | grep -q "\"$APP\""; then
             flyctl apps create "$APP" || { echo "::error::Couldn't create the Fly app '$APP'. If the name is taken, change app in backend/fly.toml (and pickup.apiBaseUrl in android/gradle.properties). If it's about billing, add a card in the Fly dashboard."; exit 1; }
           fi
-          flyctl volumes list --app "$APP" --json | grep -q pickup_data || flyctl volumes create pickup_data --app "$APP" --region bom --size 1 --yes
+          region=$(sed -nE 's/^primary_region *= *"([^"]+)".*/\1/p' backend/fly.toml)
+          flyctl volumes list --app "$APP" --json | grep -q pickup_data || flyctl volumes create pickup_data --app "$APP" --region "$region" --size 1 --yes
       - name: Sync configuration into Fly secrets
         if: steps.setup.outputs.ready == 'true'
         env:

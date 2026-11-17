@@ -1,10 +1,10 @@
-# Put the server online (Fly.io, about $7 a month)
+# Put the server online (Fly.io, about $9 a month)
 
 The backend needs a public **https://** address, because phone companies and the app must be able
 to reach it. **Fly.io** gives you one automatically (`https://your-app.fly.dev`, no domain to buy),
-has a **Mumbai** data centre close to your callers, and GitHub can deploy to it for you.
+runs it in **Singapore** (Fly's closest region to India; it has none in India), and GitHub deploys to it for you.
 
-**Cost:** one always-on machine with 1 GB of memory is about **$7/month**, plus storage at $0.15/GB.
+**Cost:** one always-on machine with 1 GB of memory is about **$8.50/month** in Singapore, plus storage at $0.15/GB.
 If a month's bill is under $5, Fly waives it. New accounts get a small free trial without a card;
 add a card to keep the server running.
 
@@ -34,7 +34,7 @@ The app's name is already chosen in `backend/fly.toml` (`pickup-ai-i6v0t`), so y
 ## Step 4: Deploy
 
 1. Click the **Actions** tab → **Deploy backend (Fly.io)** on the left → **Run workflow** → **Run workflow**.
-2. Wait 5–10 minutes the first time. The workflow creates the app in Mumbai, creates storage,
+2. Wait 5–10 minutes the first time. The workflow creates the app in Singapore, creates storage,
    generates the server's passwords, and deploys.
 3. When it's green, open **https://pickup-ai-i6v0t.fly.dev/healthz** in your browser. Seeing
    `{"ok":true}` means the server is running. The last step of the run also says whether your

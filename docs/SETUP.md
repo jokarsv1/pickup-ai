@@ -4,7 +4,7 @@ Everything that can be built without your accounts, money or signature is built 
 This is the complete list of what's left, in the order that unblocks the most.
 
 > **No terminal? Start with [guides/START-HERE.md](guides/START-HERE.md).** It covers the same steps
-> using only websites: GitHub builds the app, deploys the server to Fly.io (about $7/month), and
+> using only websites: GitHub builds the app, deploys the server to Fly.io (about $9/month), and
 > keys go into GitHub's encrypted secrets.
 
 Running it yourself instead: every key goes into `backend/.env` (copy `backend/.env.example`).
@@ -78,15 +78,16 @@ code in `BETA_LOGIN_CODE` (6+ digits). Without push (step 4), live updates show 
 
 The backend is one Docker image (`backend/Dockerfile`). It runs migrations on start.
 
-**Cheapest path, set up already:** Fly.io in Mumbai, deployed by the **Deploy backend (Fly.io)** workflow.
+**Cheapest path, set up already:** Fly.io in Singapore (Fly has no Indian region), deployed by the **Deploy backend (Fly.io)** workflow.
 Add the `FLY_API_TOKEN` secret and run it (the app name is set in `backend/fly.toml`); the workflow creates the app and
 a 1 GB volume, generates `JWT_SECRET`/`ADMIN_TOKEN`/`TELEPHONY_WEBHOOK_SECRET`, copies your GitHub
 secrets to Fly and deploys. It uses SQLite on the volume (fine for one machine and a beta) at about
-$7/month. Steps: [guides/HOSTING.md](guides/HOSTING.md). Configuration: `backend/fly.toml`.
+$9/month. Steps: [guides/HOSTING.md](guides/HOSTING.md). Configuration: `backend/fly.toml`.
 
 Anywhere else, or when you outgrow one machine:
 
 - Pick a region near your telephony provider's media servers (Mumbai for Exotel) to keep replies fast.
+  Singapore adds roughly 30-60 ms each way; when that matters, move to AWS `ap-south-1` (Mumbai).
 - You need Postgres, Redis (for more than one instance) and a public HTTPS URL. Render, Railway,
   Fly.io or AWS `ap-south-1` all work.
 - Set `ENV=prod`, `PUBLIC_BASE_URL=https://your-domain`, `DATABASE_URL=postgresql+asyncpg://…`,

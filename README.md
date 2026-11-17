@@ -18,7 +18,7 @@ own assistant number, where the voice agent answers. Details: [docs/ARCHITECTURE
 ## Get it running (no terminal needed)
 
 **[docs/guides/START-HERE.md](docs/guides/START-HERE.md)**: install the test APK, add keys, deploy the
-server to Fly.io (about $7/month) and connect Firebase, all from your browser.
+server to Fly.io (about $9/month) and connect Firebase, all from your browser.
 
 ## Status
 
