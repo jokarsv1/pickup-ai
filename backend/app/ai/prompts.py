@@ -62,13 +62,15 @@ def greeting_for(ctx: CallContext, custom: str | None = None) -> str:
     if ctx.mode == "outbound":
         who = f" Am I speaking with {ctx.outbound_to_name}?" if ctx.outbound_to_name else ""
         return f"Hello, this is {ctx.assistant_name}, {owner}'s AI assistant, calling on {owner}'s behalf.{recorded}{who}"
+    # Short on purpose: the caller can't speak until it ends, and long greetings make people hang
+    # up ("hello? hello?"). The name is only said when the user gave their assistant one.
+    named = ctx.assistant_name and ctx.assistant_name.strip().lower() != "pickup"
     if ctx.languages and ctx.languages[0] == "hi-IN":
-        return (
-            f"नमस्ते, मैं {ctx.assistant_name} हूँ, {owner} {'का' if ctx.assistant_gender == 'male' else 'की'} AI assistant."
-            f" अभी {owner} से बात नहीं हो पाएगी."
-            f"{' यह call record हो सकती है.' if ctx.record_calls else ''} आप कौन बोल रहे हैं और किस बारे में call किया?"
-        )
-    return f"Hi, this is {ctx.assistant_name}, {owner}'s AI assistant. {owner} can't take your call right now.{recorded} Who's calling, and what's it about?"
+        of = "का" if ctx.assistant_gender == "male" else "की"
+        intro = f"मैं {ctx.assistant_name}, {owner} {of} AI assistant." if named else f"मैं {owner} {of} AI assistant हूँ."
+        return f"नमस्ते, {intro} अभी {owner} से बात नहीं हो पाएगी{', call record हो सकती है' if ctx.record_calls else ''}. आप कौन बोल रहे हैं?"
+    intro = f"this is {ctx.assistant_name}, {owner}'s AI assistant" if named else f"I'm {owner}'s AI assistant"
+    return f"Hi, {intro}. {owner} can't take your call right now.{recorded} Who's calling?"
 
 
 def voice_system_prompt(ctx: CallContext) -> str:
