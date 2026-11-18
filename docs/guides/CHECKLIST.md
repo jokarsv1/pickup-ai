@@ -150,3 +150,15 @@ The Fly token and Firebase key were shared in chat. Make fresh ones:
 
 - **AI test run**: Claude can run 8 simulated callers (scammer, delivery, recruiter…) against your
   assistant. It uses part of your Anthropic credit, so it only runs when you ask.
+
+
+## Reading problem reports from users
+
+Users can send "Report a problem" from Settings in the app. Their note arrives with their setup
+details (forwarding status, carrier, SIMs, plan, app version).
+
+1. Make the repository private first (reports contain phone numbers; the workflow refuses to run
+   on a public repository).
+2. GitHub › your repository › **Actions** › **Support inbox** › **Run workflow** › Run.
+3. Open the run when it finishes, then **Summary**: each report shows the note and the details.
+4. Reply by calling or WhatsApp-ing the number shown.

@@ -1,0 +1,60 @@
+name: Support inbox
+
+# Shows the problems users reported from the app ("Report a problem"), newest first, with the
+# setup details the app attached. Run it from Actions › Support inbox › Run workflow, then open
+# the run's Summary. Reports contain phone numbers, so this only runs on a private repository.
+on:
+  workflow_dispatch:
+    inputs:
+      show:
+        description: "Which reports"
+        type: choice
+        options: [open, all]
+        default: open
+
+jobs:
+  inbox:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Refuse on a public repository
+        if: ${{ !github.event.repository.private }}
+        run: |
+          echo "::error::This repository is public, so anyone could read the reports here. Make it private first (Settings › General › Danger Zone › Change visibility)."
+          exit 1
+      - uses: actions/checkout@v4
+      - name: Check setup
+        env:
+          RAW_TOKEN: ${{ secrets.FLY_API_TOKEN }}
+          APP_VAR: ${{ vars.FLY_APP_NAME }}
+        run: |
+          [ -n "$RAW_TOKEN" ] || { echo "::error::Add the FLY_API_TOKEN secret first."; exit 1; }
+          token=$(printf '%s' "$RAW_TOKEN" | tr -d '\r\n' | sed -E 's/^[[:space:]]*(FlyV1)?[[:space:]]*/FlyV1 /')
+          echo "::add-mask::$token"
+          echo "FLY_API_TOKEN=$token" >> "$GITHUB_ENV"
+          echo "APP=${APP_VAR:-$(sed -nE 's/^app *= *"([^"]+)".*/\1/p' backend/fly.toml)}" >> "$GITHUB_ENV"
+      - uses: superfly/flyctl-actions/setup-flyctl@master
+      - name: Fetch reports
+        env:
+          SHOW: ${{ inputs.show }}
+        run: |
+          admin=$(flyctl ssh console --app "$APP" -C "printenv ADMIN_TOKEN" 2>/dev/null | tr -d '\r' | grep -v '^$' | tail -n1)
+          [ -n "$admin" ] || { echo "::error::Couldn't read the server's admin token. Is the server deployed?"; exit 1; }
+          echo "::add-mask::$admin"
+          curl -fsS "https://$APP.fly.dev/admin/support?status_filter=$SHOW" -H "X-Admin-Token: $admin" > reports.json
+          python3 - <<'EOF' >> "$GITHUB_STEP_SUMMARY"
+          import json
+          reports = json.load(open("reports.json"))
+          print(f"## {len(reports)} report(s)\n")
+          for r in reports:
+              user = r["user"]
+              print(f"### {r['created_at'][:16].replace('T', ' ')} UTC · {user.get('name') or 'No name'} · {user['phone']} · {r['status']}")
+              print(f"> {r['message']}\n")
+              server = r["diagnostics"].get("server", {})
+              app = r["diagnostics"].get("app", {})
+              print("| Detail | Value |\n|---|---|")
+              for key, value in {**server, **app}.items():
+                  print(f"| {key} | {value} |")
+              print(f"\nReport id: `{r['id']}`\n")
+          EOF
+          echo "Open this run's Summary to read the reports."
