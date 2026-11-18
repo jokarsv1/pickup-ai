@@ -129,5 +129,10 @@ class ScreenshotTour {
         rule.onNodeWithText("Instructions").performScrollTo().performClick()
         waitFor("Ready-made packs")
         shot("17-instructions")
+        back()
+
+        rule.onNodeWithText("Check my setup").performScrollTo().performClick()
+        waitFor("Report a problem")
+        shot("18-check-my-setup")
     }
 }
