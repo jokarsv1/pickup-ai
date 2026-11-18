@@ -428,7 +428,6 @@ async def sweep_unreached(now: datetime | None = None) -> int:
             )
             if line is None:
                 continue
-            who = hint.caller_name or pretty(hint.caller_number)
             call = Call(
                 user_id=hint.user_id,
                 line_id=line.id,
@@ -445,8 +444,8 @@ async def sweep_unreached(now: datetime | None = None) -> int:
                 end_reason="not_forwarded",
                 reason="Didn't reach your assistant",
                 summary=(
-                    f"{who} called, but the call didn't reach your assistant: your carrier didn't forward it, "
-                    "or they hung up while it was being forwarded. Call back if you need to."
+                    "This call didn't reach your assistant: your carrier didn't forward it, or the caller hung up "
+                    "while it was being forwarded. Call back if you need to."
                 ),
             )
             session.add(call)

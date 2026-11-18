@@ -38,7 +38,7 @@ CALLS = [
         "org": None,
         "category": None,
         "reason": "Didn't reach your assistant",
-        "summary": "+91 99004 45566 called, but the call didn't reach your assistant: your carrier didn't forward it, or they hung up while it was being forwarded. Call back if you need to.",
+        "summary": "This call didn't reach your assistant: your carrier didn't forward it, or the caller hung up while it was being forwarded. Call back if you need to.",
         "urgency": "normal",
         "duration": 0,
         "actions": [],
