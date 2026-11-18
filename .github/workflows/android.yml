@@ -59,6 +59,7 @@ jobs:
         env:
           ENV: dev
           DATABASE_URL: sqlite+aiosqlite:///./smoke.db
+          PYTHONUNBUFFERED: "1"
         run: |
           pip install . >/dev/null
           nohup uvicorn app.main:app --host 0.0.0.0 --port 8000 > ../server.log 2>&1 &

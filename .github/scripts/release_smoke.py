@@ -15,7 +15,7 @@ PKG = "ai.pickup.app"
 
 
 def adb(*args: str) -> str:
-    return subprocess.run(["adb", *args], capture_output=True, text=True).stdout
+    return subprocess.run(["adb", *args], capture_output=True, text=True, errors="replace").stdout
 
 
 def screen() -> ET.Element | None:
@@ -60,11 +60,19 @@ def crashed() -> bool:
 
 
 def fail(why: str) -> None:
-    adb("exec-out", "screencap", "-p")
     with open("out/release-smoke.png", "wb") as fh:
         fh.write(subprocess.run(["adb", "exec-out", "screencap", "-p"], capture_output=True).stdout)
     print("RELEASE SMOKE FAILED:", why)
-    print(adb("logcat", "-d", "-s", "AndroidRuntime:E")[-4000:])
+    root = screen()
+    if root is not None:
+        texts = [t for node in root.iter("node") for t in (node.get("text"), node.get("content-desc")) if t]
+        print("On screen:", " | ".join(texts)[:2000])
+    print(adb("logcat", "-d", "-s", "AndroidRuntime:E", "PickupApi:*", "okhttp.OkHttpClient:*")[-4000:])
+    try:
+        with open("server.log") as fh:
+            print("Server log (last lines):\n" + "".join(fh.readlines()[-30:]))
+    except OSError:
+        pass
     sys.exit(1)
 
 

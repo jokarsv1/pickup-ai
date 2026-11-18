@@ -6,12 +6,12 @@ from datetime import timedelta
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from loguru import logger
-from sqlalchemy import select
+from sqlalchemy import delete, select
 
 from app.config import get_settings
 from app.db import create_all, sessionmaker, utcnow
 from app.events import bus
-from app.models import AssistantSettings, Call
+from app.models import AssistantSettings, Call, ScreeningHint
 from app import downloads, legal
 from app.routers import account, admin, assistant_chat, calls, setup, telephony
 from app.storage import delete_recording
@@ -33,6 +33,8 @@ async def retention_loop() -> None:
                     for call in old:
                         await delete_recording(call.recording_key or "")
                         call.recording_key = None
+                # Screening hints only matter for a few minutes: keep two days for support, no more.
+                await session.execute(delete(ScreeningHint).where(ScreeningHint.created_at < utcnow() - timedelta(days=2)))
                 await session.commit()
         except Exception:
             logger.exception("Retention sweep failed")

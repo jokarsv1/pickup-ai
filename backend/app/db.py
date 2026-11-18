@@ -54,10 +54,15 @@ def init_engine(url: str | None = None) -> AsyncEngine:
     _engine = create_async_engine(url, **kwargs)
     if url.startswith("sqlite"):
         # SQLite ignores foreign keys (and so ON DELETE CASCADE) unless each connection opts in.
+        # WAL lets the app read call lists while a live call writes its transcript, instead of
+        # each blocking the other; busy_timeout waits briefly for a lock instead of failing.
         @event.listens_for(_engine.sync_engine, "connect")
-        def _sqlite_foreign_keys(dbapi_connection, _record) -> None:
+        def _sqlite_pragmas(dbapi_connection, _record) -> None:
             cursor = dbapi_connection.cursor()
             cursor.execute("PRAGMA foreign_keys=ON")
+            cursor.execute("PRAGMA journal_mode=WAL")
+            cursor.execute("PRAGMA synchronous=NORMAL")
+            cursor.execute("PRAGMA busy_timeout=5000")
             cursor.close()
 
     _sessionmaker = async_sessionmaker(_engine, expire_on_commit=False)

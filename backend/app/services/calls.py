@@ -27,6 +27,16 @@ from app.phone import SERIES_LABELS, designated_series, normalize, pretty, reput
 from app.push import Throttle, get_push
 
 HINT_WINDOW = timedelta(seconds=90)
+_background: set = set()
+
+
+def _in_background(coro) -> None:
+    import asyncio
+
+    task = asyncio.create_task(coro)
+    _background.add(task)
+    task.add_done_callback(_background.discard)
+
 # A call the phone sent on that hasn't arrived after this long never will: the carrier dropped it.
 UNREACHED_AFTER = timedelta(seconds=75)
 # This many in a row and we tell the user their forwarding needs re-dialling.
@@ -119,17 +129,21 @@ async def route_inbound(
     )
     session.add(call)
     await session.commit()
-    await notify(
-        user.id,
-        {
-            "type": "call.started",
-            "call_id": call.id,
-            "mode": mode,
-            "caller_number": caller,
-            "caller_display": known_name or pretty(caller),
-            "started_at": call.started_at.isoformat(),
-        },
-        push=mode != "demo",
+    # Don't make the caller wait for push notifications: with Exotel this runs inside the audio
+    # stream, so every millisecond here is silence before the greeting.
+    _in_background(
+        notify(
+            user.id,
+            {
+                "type": "call.started",
+                "call_id": call.id,
+                "mode": mode,
+                "caller_number": caller,
+                "caller_display": known_name or pretty(caller),
+                "started_at": call.started_at.isoformat(),
+            },
+            push=mode != "demo",
+        )
     )
     return RouteDecision("agent", call_id=call.id)
 
