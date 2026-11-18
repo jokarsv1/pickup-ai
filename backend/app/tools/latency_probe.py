@@ -131,6 +131,24 @@ async def main() -> None:
     ctx = CallContext("screen", "Asha Rao", "Pickup", ["hi-IN", "en-IN"], "+919812345678", pack_ids=["recruiters", "scam_shield"])
     system = voice_system_prompt(ctx)
     greeting = greeting_for(ctx)
+
+    # The first "Hello": synthesised on the spot (what a cold call costs in silence) versus taken
+    # from the greeting cache the server warms ahead of calls.
+    from app.voice import greeting_cache
+
+    t = time.perf_counter()
+    cold = await greeting_cache.synthesize(greeting, "ritu", "hi-IN", 8000)
+    cold_ms = round((time.perf_counter() - t) * 1000)
+    greeting_cache.prefetch(greeting, "ritu", "hi-IN", 8000)
+    await greeting_cache.get(greeting, "ritu", "hi-IN", 8000, wait=10)
+    t = time.perf_counter()
+    warm = await greeting_cache.get(greeting, "ritu", "hi-IN", 8000, wait=0)
+    report["greeting_ms"] = {
+        "synthesised_on_the_spot": cold_ms,
+        "from_cache": round((time.perf_counter() - t) * 1000, 3),
+        "audio_seconds": round(len(warm or cold or b"") / 16000, 1),
+    }
+
     messages: list[dict] = [{"role": "user", "content": "(The call connects.)"}, {"role": "assistant", "content": greeting}]
     pairs: list[tuple[str, str]] = [("assistant", greeting)]
     turns = []
