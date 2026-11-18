@@ -37,11 +37,31 @@ def find(text: str) -> tuple[int, int] | None:
     return None
 
 
+def dismiss_system_dialogs() -> None:
+    """A slow emulator sometimes shows "Pixel Launcher isn't responding" over our app."""
+    root = screen()
+    if root is None:
+        return
+    texts = [node.get("text") or "" for node in root.iter("node")]
+    stuck = next((t for t in texts if "isn't responding" in t), None)
+    if stuck is None:
+        return
+    if stuck.startswith("Pickup"):
+        fail("the app stopped responding (ANR)")
+    for node in root.iter("node"):
+        if node.get("text") == "Wait":
+            x1, y1, x2, y2 = map(int, re.findall(r"\d+", node.get("bounds", "")))
+            adb("shell", "input", "tap", str((x1 + x2) // 2), str((y1 + y2) // 2))
+            print(f"Dismissed a system dialog: {stuck}")
+            return
+
+
 def wait_for(text: str, timeout: int = 40) -> tuple[int, int]:
     end = time.time() + timeout
     while time.time() < end:
         if crashed():
             fail(f"crashed while waiting for '{text}'")
+        dismiss_system_dialogs()
         spot = find(text)
         if spot:
             return spot
