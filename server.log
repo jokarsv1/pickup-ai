@@ -1,0 +1,112 @@
+[32m2026-11-18 13:07:53.303[0m | [1mINFO    [0m | [36mpipecat[0m:[36m<module>[0m:[36m54[0m - [1mᓚᘏᗢ Pipecat 1.16.0 (Python 3.12.16 (main, Oct 26 2026, 02:48:44) [GCC 15.2.0]) ᓚᘏᗢ[0m
+[0;93m2026-11-18 13:07:54.210691103 [W:onnxruntime:Default, device_discovery.cc:95 GetPciBusId] Skipping pci_bus_id for PCI path at "/sys/devices/LNXSYSTM:00/LNXSYBUS:00/ACPI0004:00/MSFT1000:00/5620e0c7-8062-4dce-aeb7-520c7ef76171" because filename "5620e0c7-8062-4dce-aeb7-520c7ef76171" did not match expected pattern of [0-9a-f]+:[0-9a-f]+:[0-9a-f]+[.][0-9a-f]+[m
+INFO:     Started server process [2430]
+INFO:     Waiting for application startup.
+INFO:     Application startup complete.
+INFO:     Uvicorn running on http://0.0.0.0:8000 (Press CTRL+C to quit)
+[32m2026-11-18 13:07:54.436[0m | [34m[1mDEBUG   [0m | [36mpipecat.audio.vad.silero[0m:[36m__init__[0m:[36m169[0m - [34m[1mLoading Silero VAD model...[0m
+[32m2026-11-18 13:07:54.464[0m | [34m[1mDEBUG   [0m | [36mpipecat.audio.vad.silero[0m:[36m__init__[0m:[36m194[0m - [34m[1mLoaded Silero VAD[0m
+[32m2026-11-18 13:07:54.466[0m | [34m[1mDEBUG   [0m | [36mpipecat.audio.turn.smart_turn.local_smart_turn_v3[0m:[36m__init__[0m:[36m69[0m - [34m[1mLoading Local Smart Turn v3.x model from /opt/hostedtoolcache/Python/3.12.16/x64/lib/python3.12/site-packages/pipecat/audio/turn/smart_turn/data/smart-turn-v3.2-cpu.onnx...[0m
+[32m2026-11-18 13:07:54.487[0m | [34m[1mDEBUG   [0m | [36mpipecat.audio.turn.smart_turn.local_smart_turn_v3[0m:[36m__init__[0m:[36m79[0m - [34m[1mLoaded Local Smart Turn v3.x[0m
+[32m2026-11-18 13:07:54.488[0m | [1mINFO    [0m | [36mapp.main[0m:[36m_prewarm_voice_models[0m:[36m65[0m - [1mVoice models loaded[0m
+INFO:     127.0.0.1:55438 - "GET /healthz HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55444 - "GET /v1/config HTTP/1.1" 200 OK
+INFO:     127.0.0.1:58004 - "GET /v1/config HTTP/1.1" 200 OK
+INFO:     127.0.0.1:58008 - "POST /v1/auth/dev HTTP/1.1" 200 OK
+INFO:     127.0.0.1:58008 - "GET /v1/me HTTP/1.1" 200 OK
+INFO:     127.0.0.1:58012 - "POST /v1/stream/ticket HTTP/1.1" 200 OK
+INFO:     127.0.0.1:58008 - "GET /v1/me HTTP/1.1" 200 OK
+INFO:     127.0.0.1:58008 - "GET /v1/lines/current HTTP/1.1" 404 Not Found
+INFO:     127.0.0.1:58022 - "WebSocket /v1/stream?ticket=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJ1c3JfNzRiOTA2NTFkYTc5NDQ0NjhmMjIiLCJ0eXAiOiJ3cyIsImV4cCI6MTc5NTAwNzU3NX0.5l9b9qAediQMgrMcA176HGRMnhrUu1mugv8y8Gg6RQA" [accepted]
+INFO:     connection open
+INFO:     127.0.0.1:58008 - "PATCH /v1/me HTTP/1.1" 200 OK
+INFO:     127.0.0.1:58008 - "PATCH /v1/assistant HTTP/1.1" 200 OK
+INFO:     127.0.0.1:58008 - "GET /v1/screening/policy HTTP/1.1" 200 OK
+INFO:     127.0.0.1:58008 - "GET /v1/lines/current HTTP/1.1" 404 Not Found
+INFO:     127.0.0.1:58008 - "POST /v1/lines HTTP/1.1" 200 OK
+INFO:     127.0.0.1:58008 - "GET /v1/screening/policy HTTP/1.1" 200 OK
+INFO:     127.0.0.1:54556 - "GET /v1/config HTTP/1.1" 200 OK
+INFO:     127.0.0.1:54556 - "POST /v1/auth/dev HTTP/1.1" 200 OK
+INFO:     127.0.0.1:54556 - "GET /v1/lines/current HTTP/1.1" 200 OK
+INFO:     127.0.0.1:37610 - "GET /v1/assistant HTTP/1.1" 200 OK
+INFO:     127.0.0.1:37640 - "GET /v1/me/entitlement HTTP/1.1" 200 OK
+INFO:     127.0.0.1:37656 - "GET /v1/calls HTTP/1.1" 200 OK
+INFO:     127.0.0.1:37626 - "GET /v1/me/stats HTTP/1.1" 200 OK
+INFO:     127.0.0.1:54556 - "GET /v1/me/entitlement HTTP/1.1" 200 OK
+INFO:     127.0.0.1:37626 - "GET /v1/lines/current HTTP/1.1" 200 OK
+INFO:     127.0.0.1:37640 - "GET /v1/assistant HTTP/1.1" 200 OK
+INFO:     127.0.0.1:37610 - "GET /v1/me/stats HTTP/1.1" 200 OK
+INFO:     127.0.0.1:37656 - "GET /v1/calls HTTP/1.1" 200 OK
+INFO:     127.0.0.1:54556 - "POST /v1/devices HTTP/1.1" 204 No Content
+INFO:     127.0.0.1:54556 - "GET /v1/calls/live HTTP/1.1" 200 OK
+INFO:     127.0.0.1:37610 - "GET /v1/calls/live HTTP/1.1" 200 OK
+INFO:     127.0.0.1:54556 - "GET /v1/me HTTP/1.1" 200 OK
+INFO:     127.0.0.1:37610 - "POST /v1/stream/ticket HTTP/1.1" 200 OK
+INFO:     127.0.0.1:37672 - "WebSocket /v1/stream?ticket=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJ1c3JfNGEyNjc2M2I4MGRlNGJhMDkxMjAiLCJ0eXAiOiJ3cyIsImV4cCI6MTc5NTAwNzYwMX0.oHncEF5NuPGL1Z0X1X99foQr3AYRBoXU8ULWd4KhZNQ" [accepted]
+INFO:     connection open
+INFO:     127.0.0.1:54556 - "GET /v1/screening/policy HTTP/1.1" 200 OK
+INFO:     127.0.0.1:54556 - "GET /v1/screening/policy HTTP/1.1" 200 OK
+INFO:     127.0.0.1:54556 - "GET /v1/calls/call_f2ccc51371e5404db94b HTTP/1.1" 200 OK
+INFO:     127.0.0.1:54556 - "GET /v1/calls HTTP/1.1" 200 OK
+INFO:     127.0.0.1:37610 - "GET /v1/assistant HTTP/1.1" 200 OK
+INFO:     127.0.0.1:37610 - "GET /v1/me/entitlement HTTP/1.1" 200 OK
+INFO:     127.0.0.1:37626 - "GET /v1/me/stats HTTP/1.1" 200 OK
+INFO:     127.0.0.1:37640 - "GET /v1/lines/current HTTP/1.1" 200 OK
+INFO:     127.0.0.1:54556 - "GET /v1/calls/live HTTP/1.1" 200 OK
+INFO:     127.0.0.1:54556 - "GET /v1/screening/policy HTTP/1.1" 200 OK
+INFO:     127.0.0.1:54556 - "GET /v1/calls/call_5840059508bc4cd29bd9 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:54556 - "GET /v1/me/entitlement HTTP/1.1" 200 OK
+INFO:     127.0.0.1:37640 - "GET /v1/calls HTTP/1.1" 200 OK
+INFO:     127.0.0.1:37610 - "GET /v1/assistant HTTP/1.1" 200 OK
+INFO:     127.0.0.1:37626 - "GET /v1/lines/current HTTP/1.1" 200 OK
+INFO:     127.0.0.1:37680 - "GET /v1/me/stats HTTP/1.1" 200 OK
+INFO:     127.0.0.1:54556 - "GET /v1/calls/live HTTP/1.1" 200 OK
+INFO:     127.0.0.1:54556 - "GET /v1/screening/policy HTTP/1.1" 200 OK
+INFO:     127.0.0.1:54556 - "GET /v1/calls/call_bfa0a547335a483ba153 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:54556 - "GET /v1/lines/current HTTP/1.1" 200 OK
+INFO:     127.0.0.1:37626 - "GET /v1/assistant HTTP/1.1" 200 OK
+INFO:     127.0.0.1:37610 - "GET /v1/me/entitlement HTTP/1.1" 200 OK
+INFO:     127.0.0.1:37680 - "GET /v1/calls HTTP/1.1" 200 OK
+INFO:     127.0.0.1:37640 - "GET /v1/me/stats HTTP/1.1" 200 OK
+INFO:     127.0.0.1:54556 - "GET /v1/calls/live HTTP/1.1" 200 OK
+INFO:     127.0.0.1:54556 - "GET /v1/screening/policy HTTP/1.1" 200 OK
+INFO:     127.0.0.1:54556 - "GET /v1/assistant/chat HTTP/1.1" 200 OK
+INFO:     127.0.0.1:37610 - "GET /v1/me/entitlement HTTP/1.1" 200 OK
+INFO:     127.0.0.1:37640 - "GET /v1/lines/current HTTP/1.1" 200 OK
+INFO:     127.0.0.1:37680 - "GET /v1/rules HTTP/1.1" 200 OK
+INFO:     127.0.0.1:37626 - "GET /v1/assistant/options HTTP/1.1" 200 OK
+INFO:     127.0.0.1:54556 - "GET /v1/assistant HTTP/1.1" 200 OK
+INFO:     127.0.0.1:37626 - "GET /v1/me/entitlement HTTP/1.1" 200 OK
+INFO:     127.0.0.1:37610 - "GET /v1/lines/current HTTP/1.1" 200 OK
+INFO:     127.0.0.1:37640 - "GET /v1/assistant HTTP/1.1" 200 OK
+INFO:     127.0.0.1:54556 - "GET /v1/assistant/options HTTP/1.1" 200 OK
+INFO:     127.0.0.1:37610 - "GET /v1/rules HTTP/1.1" 200 OK
+INFO:     127.0.0.1:37640 - "GET /v1/assistant/options HTTP/1.1" 200 OK
+INFO:     127.0.0.1:37680 - "GET /v1/me/entitlement HTTP/1.1" 200 OK
+INFO:     127.0.0.1:37626 - "GET /v1/lines/current HTTP/1.1" 200 OK
+INFO:     127.0.0.1:54556 - "GET /v1/assistant HTTP/1.1" 200 OK
+INFO:     127.0.0.1:37610 - "GET /v1/rules HTTP/1.1" 200 OK
+INFO:     127.0.0.1:37610 - "GET /v1/lines/current HTTP/1.1" 200 OK
+INFO:     127.0.0.1:37626 - "GET /v1/rules HTTP/1.1" 200 OK
+INFO:     127.0.0.1:54556 - "GET /v1/me/entitlement HTTP/1.1" 200 OK
+INFO:     127.0.0.1:37680 - "GET /v1/assistant/options HTTP/1.1" 200 OK
+INFO:     127.0.0.1:37640 - "GET /v1/assistant HTTP/1.1" 200 OK
+INFO:     127.0.0.1:37640 - "GET /v1/assistant/options HTTP/1.1" 200 OK
+INFO:     127.0.0.1:37610 - "GET /v1/me/entitlement HTTP/1.1" 200 OK
+INFO:     127.0.0.1:37626 - "GET /v1/rules HTTP/1.1" 200 OK
+INFO:     127.0.0.1:54556 - "GET /v1/lines/current HTTP/1.1" 200 OK
+INFO:     127.0.0.1:37680 - "GET /v1/assistant HTTP/1.1" 200 OK
+INFO:     127.0.0.1:54556 - "GET /v1/lines/current HTTP/1.1" 200 OK
+INFO:     127.0.0.1:37680 - "GET /v1/assistant/options HTTP/1.1" 200 OK
+INFO:     127.0.0.1:37610 - "GET /v1/me/entitlement HTTP/1.1" 200 OK
+INFO:     127.0.0.1:37640 - "GET /v1/assistant HTTP/1.1" 200 OK
+INFO:     127.0.0.1:37626 - "GET /v1/rules HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55288 - "GET /v1/config HTTP/1.1" 200 OK
+INFO:     127.0.0.1:37400 - "POST /v1/auth/dev HTTP/1.1" 200 OK
+INFO:     127.0.0.1:37400 - "POST /v1/devices HTTP/1.1" 204 No Content
+INFO:     127.0.0.1:37400 - "POST /v1/stream/ticket HTTP/1.1" 200 OK
+INFO:     127.0.0.1:37416 - "GET /v1/me HTTP/1.1" 200 OK
+INFO:     127.0.0.1:37422 - "WebSocket /v1/stream?ticket=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJ1c3JfZDI3MTc0Mjg4YjRjNDRmYmE4Y2IiLCJ0eXAiOiJ3cyIsImV4cCI6MTc5NTAwNzY0MH0.qdcG8l3qTMjyHSIsxvddGiGleAVnLPV1aZaJJ9YZVxE" [accepted]
+INFO:     connection open
+INFO:     127.0.0.1:37400 - "GET /v1/me HTTP/1.1" 200 OK
+INFO:     127.0.0.1:37400 - "GET /v1/lines/current HTTP/1.1" 404 Not Found

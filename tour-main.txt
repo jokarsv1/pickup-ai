@@ -1,0 +1,8 @@
+
+ai.pickup.app.ScreenshotTour:.
+
+Time: 23.651
+
+OK (1 test)
+
+

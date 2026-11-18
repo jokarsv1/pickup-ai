@@ -1,0 +1,1 @@
+Release APK smoke test passed: signed in and reached the profile screen.
