@@ -191,7 +191,7 @@ enum PlanText {
             return "Pro trial: \(days) day\(days == 1 ? "" : "s") left"
         case "pro": return "Pickup Pro"
         case "free": return e.callsLeftThisMonth.map { "Free plan: \($0) calls left this month" }
-        default: return "Free calls used up: your assistant takes short messages"
+        default: return "Free calls used up: your assistant takes short messages. Your calls stay free."
         }
     }
 }
@@ -268,6 +268,8 @@ struct CallRow: View {
             VStack(alignment: .leading, spacing: 3) {
                 HStack(spacing: 6) {
                     Text(Format.callTitle(call.title, number: call.callerNumber)).font(.headline).lineLimit(1)
+                    if call.notReached { Pill(text: "Missed", color: .saffron) }
+                    if call.callerLabel?.hasPrefix("Verified") == true { Pill(text: "Verified", color: .success) }
                     if call.isSpam { Pill(text: "Spam", color: .danger) }
                     if call.urgency == "high" { Pill(text: "Urgent", color: .saffron) }
                 }

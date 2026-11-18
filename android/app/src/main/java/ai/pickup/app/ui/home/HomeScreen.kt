@@ -300,8 +300,14 @@ private fun StatusCard(state: HomeState, onToggle: (Boolean) -> Unit, onSnooze: 
     val snoozedFor = Format.until(assistant?.snoozeUntil)
     val setupDone = line?.status == "verified"
     val active = setupDone && assistant?.screeningMode != "off" && snoozedFor == null
+    val forwardingProblem = setupDone && line?.forwardingProblem == true
     val (title, subtitle, dot) = when {
         line == null || !setupDone -> Triple("Finish setting up", "Forwarding isn't confirmed yet, so calls still ring you.", colors.warning)
+        forwardingProblem -> Triple(
+            "Calls aren't reaching your assistant",
+            "Your carrier seems to have turned off forwarding (it happens). Dial the codes again: it takes a minute.",
+            colors.warning,
+        )
         assistant?.screeningMode == "off" -> Triple("Assistant is off", "Your phone rings for every call. Calls you decline still reach your assistant.", MaterialTheme.colorScheme.outline)
         snoozedFor != null -> Triple("Paused for $snoozedFor", "Calls ring you normally until then.", colors.warning)
         assistant?.screeningMode == "ring_first" -> Triple("Ring first, then assistant", "Your phone rings first. Calls you miss go to your assistant.", colors.success)
@@ -322,6 +328,8 @@ private fun StatusCard(state: HomeState, onToggle: (Boolean) -> Unit, onSnooze: 
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 if (!setupDone) {
                     FilledTonalButton(onClick = onFixSetup) { Text("Continue setup") }
+                } else if (forwardingProblem) {
+                    FilledTonalButton(onClick = onFixSetup) { Text("Fix forwarding") }
                 } else if (snoozedFor != null) {
                     AssistChip(onClick = { onSnooze(0) }, label = { Text("Resume now") })
                 } else if (active) {
@@ -344,9 +352,9 @@ private fun minutesUntilMorning(): Int {
 @Composable
 private fun PlanLine(ent: Entitlement) {
     val text = when (ent.level) {
-        "trial" -> Format.until(ent.trialEndsAt)?.let { "Pro trial: $it left" }
+        "trial" -> Format.until(ent.trialEndsAt)?.let { "Pro trial: $it left. Your calls and summaries stay free after it." }
         "free" -> "Free plan: ${ent.callsLeftThisMonth ?: 0} calls left this month"
-        "limited" -> "Free calls used up: your assistant only takes messages until next month"
+        "limited" -> "Free calls used up: your assistant takes short messages until next month. Everything you have stays free."
         else -> null
     } ?: return
     Spacer(Modifier.height(10.dp))
@@ -404,6 +412,14 @@ fun CallRow(call: CallSummary, onClick: () -> Unit) {
                 if (call.direction == "outbound") {
                     Spacer(Modifier.width(6.dp))
                     Pill("Made for you", MaterialTheme.colorScheme.primary)
+                }
+                if (call.mode == "not_reached") {
+                    Spacer(Modifier.width(6.dp))
+                    Pill("Missed", colors.warning)
+                }
+                if (call.callerLabel != null && call.callerLabel.startsWith("Verified")) {
+                    Spacer(Modifier.width(6.dp))
+                    Pill("Verified", colors.success)
                 }
                 if (call.isSpam) {
                     Spacer(Modifier.width(6.dp))

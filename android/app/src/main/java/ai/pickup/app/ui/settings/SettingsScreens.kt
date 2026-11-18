@@ -161,6 +161,16 @@ class SettingsViewModel(private val graph: AppGraph) : ViewModel() {
         runCatching { repo.verifyPurchase(productId, token) }.onSuccess { e -> _state.update { it.copy(entitlement = e) } }
     }
 
+    fun reportProblem(message: String, diagnostics: Map<String, String>, onSent: () -> Unit) = viewModelScope.launch {
+        _state.update { it.copy(saving = true) }
+        runCatching { repo.reportProblem(message, diagnostics) }
+            .onSuccess {
+                _state.update { it.copy(saving = false, message = "Sent with your setup details. We'll get back to you on your number.") }
+                onSent()
+            }
+            .onFailure { e -> _state.update { it.copy(saving = false, message = e.message) } }
+    }
+
     fun consumeMessage() = _state.update { it.copy(message = null) }
 }
 
@@ -172,6 +182,7 @@ fun SettingsScreen(
     onOpenPlan: () -> Unit,
     onRerunSetup: () -> Unit,
     onSignedOut: () -> Unit,
+    onOpenHelp: () -> Unit = {},
 ) {
     val state by vm.state.collectAsStateWithLifecycle()
     val context = LocalContext.current
@@ -223,6 +234,16 @@ fun SettingsScreen(
             SwitchRow("Connect urgent calls", "Your assistant puts genuine emergencies straight through to you.", assistant?.urgentPassthrough != false) {
                 vm.update(AssistantPatch(urgentPassthrough = it))
             }
+            SwitchRow("Ring if they call twice", "Someone calling again within 3 minutes rings your phone. Urgent callers usually try twice.", assistant?.ringRepeatCallers != false) {
+                vm.update(AssistantPatch(ringRepeatCallers = it))
+            }
+            SwitchRow(
+                "Banks and government ring you",
+                "Verified 1600 and 1601 numbers (banks, insurers, government, couriers) ring instead of going to your assistant.",
+                assistant?.ringVerifiedBusiness != false,
+            ) {
+                vm.update(AssistantPatch(ringVerifiedBusiness = it))
+            }
             SwitchRow("Record calls", "Recordings stay ${assistant?.retentionDays ?: 90} days, then they're deleted. Callers are told.", assistant?.recordCalls != false) {
                 vm.update(AssistantPatch(recordCalls = it))
             }
@@ -260,9 +281,11 @@ fun SettingsScreen(
                 headlineContent = { Text(line?.assistantNumberDisplay ?: "Not set up") },
                 supportingContent = {
                     Text(
-                        when (line?.status) {
-                            "verified" -> "Working. Last forwarded call: ${Format.dateTime(line.lastForwardedAt).ifBlank { "none yet" }}"
-                            null -> "Set up your assistant number"
+                        when {
+                            line == null -> "Set up your assistant number"
+                            line.status == "verified" && line.forwardingProblem ->
+                                "Calls stopped arriving: your carrier may have turned forwarding off. Tap Set up again."
+                            line.status == "verified" -> "Working. Last forwarded call: ${Format.dateTime(line.lastForwardedAt).ifBlank { "none yet" }}"
                             else -> "Not confirmed yet"
                         }
                     )
@@ -274,6 +297,13 @@ fun SettingsScreen(
                 if (line != null) OutlinedButton(onClick = { vm.testForwarding() }) { Text("Test") }
                 if (line != null) OutlinedButton(onClick = { PhoneUtils.openDialer(context, line.deactivationCode) }) { Text("Turn off") }
             }
+
+            SectionHeader("Help")
+            ListItem(
+                headlineContent = { Text("Check my setup") },
+                supportingContent = { Text("See what's working, and report a problem with your details attached") },
+                modifier = Modifier.clickable(onClick = onOpenHelp),
+            )
 
             SectionHeader("Account")
             ListItem(headlineContent = { Text("Sign out") }, modifier = Modifier.clickable { confirm = "signout" })
@@ -514,13 +544,23 @@ fun PlanScreen(vm: SettingsViewModel, productIds: List<String>, onBack: () -> Un
         Column(Modifier.fillMaxSize().padding(padding).verticalScroll(rememberScrollState()).padding(16.dp)) {
             Text(planTitle(state.entitlement), style = MaterialTheme.typography.headlineSmall)
             Text(planSubtitle(state.entitlement), color = MaterialTheme.colorScheme.onSurfaceVariant)
-            SectionHeader("Pro includes")
+            SectionHeader("Free, always")
+            listOf(
+                "Your calls: summaries, transcripts and recordings",
+                "Live transcript, one-tap replies and Join call",
+                "Every Indian language your assistant speaks",
+                "A set number of calls answered each month",
+            ).forEach { line ->
+                Row(Modifier.padding(vertical = 4.dp), verticalAlignment = Alignment.CenterVertically) {
+                    Icon(Icons.Filled.CheckCircle, null, tint = MaterialTheme.colorScheme.outline)
+                    Spacer(Modifier.width(10.dp))
+                    Text(line)
+                }
+            }
+            SectionHeader("Pro adds")
             listOf(
                 "Unlimited calls answered by your assistant",
-                "Live transcript, one-tap replies and Join call",
                 "Your assistant makes calls for you",
-                "Call recordings",
-                "Every Indian language your assistant speaks",
             ).forEach { line ->
                 Row(Modifier.padding(vertical = 4.dp), verticalAlignment = Alignment.CenterVertically) {
                     Icon(Icons.Filled.CheckCircle, null, tint = MaterialTheme.colorScheme.primary)

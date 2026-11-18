@@ -362,10 +362,7 @@ private fun PermissionsScreen(vm: OnboardingViewModel, state: OnboardingState) {
     LifecycleEventEffect(Lifecycle.Event.ON_RESUME) { tick++ }
     val roleLauncher = rememberLauncherForActivityResult(ActivityResultContracts.StartActivityForResult()) { tick++ }
     val notifLauncher = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { tick++ }
-    val contactsLauncher = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
-        if (granted) vm.syncContacts(context)
-        tick++
-    }
+    val contactsLauncher = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { tick++ }
     val phoneLauncher = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { tick++ }
 
     // Re-read on every resume and after every permission result.
@@ -379,7 +376,7 @@ private fun PermissionsScreen(vm: OnboardingViewModel, state: OnboardingState) {
     StepLayout(
         stepIndex = 2,
         title = "A few permissions",
-        body = "Each one has a single job. Pickup never reads your messages or your call history.",
+        body = "Each one has a single job. Pickup never reads your messages or call history, and your contacts never leave your phone.",
         error = state.error,
         footer = {
             PrimaryButton("Continue", onClick = { vm.permissionsDone(context) }, enabled = screening, loading = state.busy)
@@ -404,7 +401,7 @@ private fun PermissionsScreen(vm: OnboardingViewModel, state: OnboardingState) {
         PermissionRow(Icons.Filled.NotificationsActive, "Notifications", "See who's calling and why, live, and reply in one tap.", notifications) {
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) notifLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
         }
-        PermissionRow(Icons.Filled.Contacts, "Contacts", "Friends and family always ring through, and your assistant knows their names.", contacts) {
+        PermissionRow(Icons.Filled.Contacts, "Contacts", "Friends and family always ring through. Checked on your phone; your contacts are never uploaded.", contacts) {
             contactsLauncher.launch(Manifest.permission.READ_CONTACTS)
         }
         PermissionRow(Icons.Filled.SimCard, "Phone", "Checks how many SIMs you use, so no call is ever lost on a dual-SIM phone.", phone) {

@@ -7,6 +7,7 @@ from fastapi import APIRouter, HTTPException, Query, status
 from fastapi.responses import FileResponse, RedirectResponse
 from sqlalchemy import or_, select
 
+from app import ratelimit
 from app.db import utcnow
 from app.deps import CurrentUser, Session
 from app.entitlements import entitlement_for
@@ -14,6 +15,7 @@ from app.events import bus, call_topic
 from app.models import Call, CallAction, TranscriptSegment
 from app.packs import CATEGORIES
 from app.schemas import ActionOut, ActionUpdate, CallDetailOut, CallPage, CallSummaryOut, FeedbackIn, LiveActivityTokenIn, SayIn, TranscriptLine
+from app.phone import SERIES_LABELS, designated_series
 from app.services.calls import display_title
 from app.storage import delete_recording, recording_url_or_path
 
@@ -38,6 +40,7 @@ def summary_out(call: Call) -> CallSummaryOut:
         summary=call.summary,
         urgency=call.urgency,
         is_spam=call.is_spam,
+        caller_label=SERIES_LABELS.get(designated_series(call.from_number) or ""),
         started_at=call.started_at,
         duration_seconds=call.duration_seconds,
         has_recording=bool(call.recording_key),
@@ -149,7 +152,7 @@ async def _live_call(session: Session, user, call_id: str) -> Call:
         raise HTTPException(status.HTTP_409_CONFLICT, "This call has already ended")
     ent = await entitlement_for(session, user)
     if not ent.live_controls:
-        raise HTTPException(status.HTTP_402_PAYMENT_REQUIRED, "Live controls are part of Pickup Pro")
+        raise HTTPException(status.HTTP_402_PAYMENT_REQUIRED, "Live controls aren't available on your plan")
     return call
 
 
@@ -157,6 +160,15 @@ async def _live_call(session: Session, user, call_id: str) -> Call:
 async def say(call_id: str, body: SayIn, session: Session, user: CurrentUser) -> dict:
     await _live_call(session, user, call_id)
     await bus.publish(call_topic(call_id), {"type": "say", "text": body.text.strip()})
+    return {"status": "sent"}
+
+
+@router.post("/{call_id}/typing", status_code=202)
+async def typing(call_id: str, session: Session, user: CurrentUser) -> dict:
+    """The owner started typing a reply: the assistant asks the caller to hold and won't hang up."""
+    ratelimit.check(f"typing:{user.id}", 20, 60)
+    await _live_call(session, user, call_id)
+    await bus.publish(call_topic(call_id), {"type": "typing"})
     return {"status": "sent"}
 
 

@@ -62,8 +62,19 @@ class PickupMessagingService : FirebaseMessagingService() {
                 CallNotifications.showSummary(this, callId, title, summary, callback, isSpam)
             }
             "line.verified" -> CallNotifications.showSetup(this, "Your assistant is live", "Unknown callers will now reach Pickup.")
+            // The carrier never delivered a call we sent on: still tell the user someone called.
+            "call.missed" -> if (callId != null) {
+                CallNotifications.showSummary(
+                    this, callId, "Missed call: ${data["title"] ?: "Unknown caller"}",
+                    "It didn't reach your assistant. Call back if you need to.", data["caller_number"], false,
+                )
+            }
+            "forwarding.problem" -> CallNotifications.showSetup(
+                this, "Calls aren't reaching your assistant",
+                "Your carrier may have turned off forwarding. Open Pickup to fix it in a minute.",
+            )
         }
-        if (data["type"] in setOf("line.verified", "summary")) {
+        if (data["type"] in setOf("line.verified", "summary", "forwarding.problem")) {
             val app = application as PickupApp
             app.graph.scope.launch { app.graph.repository.refreshPolicy() }
         }

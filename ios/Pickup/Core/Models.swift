@@ -104,6 +104,7 @@ struct AssistantOptions: Decodable {
 struct CallSummary: Decodable, Identifiable, Hashable {
     var id: String
     var direction: String = "inbound"
+    var mode: String?
     var state: String
     var title: String
     var callerNumber: String?
@@ -113,9 +114,13 @@ struct CallSummary: Decodable, Identifiable, Hashable {
     var summary: String?
     var urgency: String?
     var isSpam: Bool = false
+    /// TRAI's regulated business numbers: "Verified bank or government number" and so on.
+    var callerLabel: String?
     var startedAt: String
     var durationSeconds: Int?
     var unread: Bool = false
+    /// A call the carrier never delivered to the assistant.
+    var notReached: Bool { mode == "not_reached" }
     var isLive: Bool { ["ringing", "live", "taken_over"].contains(state) }
 }
 
@@ -136,6 +141,8 @@ struct CallAction: Decodable, Identifiable, Hashable {
 struct CallDetail: Decodable, Identifiable {
     var id: String
     var direction: String = "inbound"
+    var mode: String?
+    var callerLabel: String?
     var state: String
     var title: String
     var callerNumber: String?
@@ -155,6 +162,7 @@ struct CallDetail: Decodable, Identifiable {
 }
 
 struct CallPage: Decodable { var items: [CallSummary] = []; var nextCursor: String? }
+struct SupportReportBody: Encodable { var message: String; var diagnostics: [String: String] }
 struct SayBody: Encodable { var text: String }
 struct FeedbackBody: Encodable { var rating: Int }
 struct ActionStatusBody: Encodable { var status: String }

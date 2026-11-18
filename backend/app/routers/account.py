@@ -13,6 +13,7 @@ from app.db import utcnow
 from app.deps import CurrentUser, Session
 from app.entitlements import entitlement_for
 from app.models import (
+    SupportReport,
     AssistantSettings,
     Call,
     CallAction,
@@ -30,6 +31,8 @@ from app.models import (
 )
 from app.phone import normalize
 from app.schemas import (
+    SupportReportIn,
+    SupportReportOut,
     DeviceIn,
     DevLogin,
     EntitlementOut,
@@ -203,7 +206,7 @@ async def delete_me(session: Session, user: CurrentUser) -> None:
     call_ids = select(Call.id).where(Call.user_id == user.id)
     await session.execute(delete(TranscriptSegment).where(TranscriptSegment.call_id.in_(call_ids)))
     await session.execute(delete(CallAction).where(CallAction.user_id == user.id))
-    for model in (Call, ChatMessage, OutboundTask, Rule, ContactEntry, ScreeningHint, Device, RefreshToken, Purchase, Line, AssistantSettings):
+    for model in (Call, ChatMessage, OutboundTask, Rule, ContactEntry, ScreeningHint, SupportReport, Device, RefreshToken, Purchase, Line, AssistantSettings):
         await session.execute(delete(model).where(model.user_id == user.id))
     await session.flush()
     await session.delete(user)
@@ -244,3 +247,29 @@ async def stats(session: Session, user: CurrentUser) -> StatsOut:
 @router.post("/v1/stream/ticket")
 async def stream_ticket(user: CurrentUser) -> dict:
     return {"ticket": create_ws_ticket(user.id)}
+
+
+@router.post("/v1/support/report", response_model=SupportReportOut, status_code=201)
+async def report_problem(body: SupportReportIn, session: Session, user: CurrentUser) -> SupportReportOut:
+    """"Report a problem": the user's note plus the setup details we'd otherwise have to ask for."""
+    ratelimit.check(f"support:{user.id}", 5, 3600)
+    line = await session.scalar(
+        select(Line).where(Line.user_id == user.id, Line.status != "released").order_by(Line.created_at.desc())
+    )
+    ent = await entitlement_for(session, user)
+    last_call = await session.scalar(select(func.max(Call.started_at)).where(Call.user_id == user.id))
+    server = {
+        "line_status": line.status if line else "none",
+        "carrier": line.carrier if line else None,
+        "sim_count": line.sim_count if line else None,
+        "ring_seconds": line.ring_seconds if line else None,
+        "last_forwarded_at": line.last_forwarded_at.isoformat() if line and line.last_forwarded_at else None,
+        "missed_streak": line.missed_streak if line else None,
+        "plan": ent.level,
+        "last_call_at": last_call.isoformat() if last_call else None,
+    }
+    app_side = {str(k)[:40]: (v[:200] if isinstance(v, str) else v) for k, v in body.diagnostics.items()}
+    report = SupportReport(user_id=user.id, message=body.message.strip(), diagnostics={"app": app_side, "server": server})
+    session.add(report)
+    await session.commit()
+    return SupportReportOut(id=report.id, created_at=report.created_at)

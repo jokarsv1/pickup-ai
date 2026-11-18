@@ -77,7 +77,16 @@ async def lifespan(_app: FastAPI) -> AsyncIterator[None]:
     if s.env != "test":
         from app.services.outbound import scheduler_loop
 
-        tasks = [asyncio.create_task(scheduler_loop()), asyncio.create_task(retention_loop()), asyncio.create_task(_prewarm_voice_models())]
+        from app.services.calls import unreached_loop
+        from app.voice.session import warm_recent_greetings
+
+        tasks = [
+            asyncio.create_task(scheduler_loop()),
+            asyncio.create_task(retention_loop()),
+            asyncio.create_task(unreached_loop()),
+            asyncio.create_task(_prewarm_voice_models()),
+            asyncio.create_task(warm_recent_greetings()),
+        ]
     try:
         yield
     finally:

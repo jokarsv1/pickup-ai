@@ -45,6 +45,16 @@ final class CallModel {
         }
     }
 
+    private var lastTypingSignal = Date.distantPast
+
+    /// Tells the assistant you're writing a reply, so it holds the caller instead of hanging up.
+    func typing() {
+        guard Date().timeIntervalSince(lastTypingSignal) > 10 else { return }
+        lastTypingSignal = Date()
+        let path = "/v1/calls/\(callId)/typing"
+        Task { let _: Empty? = try? await API.shared.post(path) }
+    }
+
     func say(_ text: String) async {
         let text = text.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !text.isEmpty else { return }
@@ -159,6 +169,8 @@ struct CallDetailView: View {
                 if call.category != nil || call.isSpam { Pill(text: call.categoryLabel ?? style.label, color: style.color) }
                 if call.isSpam && call.category != "scam" { Pill(text: "Likely spam", color: .danger) }
                 if call.urgency == "high" { Pill(text: "Urgent", color: .saffron) }
+                if call.mode == "not_reached" { Pill(text: "Didn't reach your assistant", color: .saffron) }
+                if let label = call.callerLabel { Pill(text: label, color: .success) }
             }
         }
     }
@@ -267,6 +279,9 @@ struct LiveCallView: View {
             HStack {
                 TextField("Tell your assistant what to say", text: $model.draft, axis: .vertical)
                     .focused($typing)
+                    .onChange(of: model.draft) { _, text in
+                        if !text.trimmingCharacters(in: .whitespaces).isEmpty { model.typing() }
+                    }
                     .padding(10)
                     .background(Color.card, in: RoundedRectangle(cornerRadius: 14))
                 Button { Task { await model.say(model.draft) } } label: { Image(systemName: "paperplane.fill").font(.title3) }

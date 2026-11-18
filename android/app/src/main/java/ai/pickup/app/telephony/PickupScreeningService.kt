@@ -27,8 +27,10 @@ class PickupScreeningService : CallScreeningService() {
             respondToCall(callDetails, CallResponse.Builder().build())
             return
         }
+        val number = PhoneUtils.toE164(this, callDetails.handle?.schemeSpecificPart)
+        val contactName = PhoneUtils.lookupContactName(this, number) // on the phone only; never uploaded
         val decision = try {
-            decide(app, callDetails)
+            decide(app, number, contactName != null)
         } catch (e: Exception) {
             Log.w(TAG, "Screening failed, letting the call ring", e)
             ScreeningPolicy.Decision.RING
@@ -41,22 +43,22 @@ class PickupScreeningService : CallScreeningService() {
             .build()
         respondToCall(callDetails, response)
 
-        if (sendToAssistant) {
-            val number = PhoneUtils.toE164(this, callDetails.handle?.schemeSpecificPart)
-            // Tell the backend who really called, in case the carrier shows our number instead.
-            if (number != null) app.graph.scope.launch { runCatching { app.graph.repository.sendHint(number, "declined") } }
+        if (sendToAssistant && number != null) {
+            RecentScreens.markSent(this, number)
+            // Tell the backend who really called (the carrier may show our number instead), so it can
+            // also tell the user if the carrier never delivers the call. A saved contact's name goes
+            // with this one call only.
+            app.graph.scope.launch { runCatching { app.graph.repository.sendHint(number, "declined", contactName) } }
         }
     }
 
-    private fun decide(app: PickupApp, details: Call.Details): ScreeningPolicy.Decision {
+    private fun decide(app: PickupApp, number: String?, isContact: Boolean): ScreeningPolicy.Decision {
         val store = app.graph.store
         val snapshot = runBlocking { withTimeoutOrNull(1500) { Triple(store.policyJson.first(), store.verifyUntil(), store.sims()) } }
             ?: return ScreeningPolicy.Decision.RING
         val (policyJson, verifyUntil, configuredSims) = snapshot
         val policy = policyJson?.let { runCatching { AppJson.decodeFromString(ScreeningPolicyDto.serializer(), it) }.getOrNull() }
             ?: return ScreeningPolicy.Decision.RING
-        val number = PhoneUtils.toE164(this, details.handle?.schemeSpecificPart)
-        val isContact = number != null && PhoneUtils.lookupContactName(this, number) != null
         return ScreeningPolicy.decide(
             ScreeningPolicy.Input(
                 number = number,
@@ -73,6 +75,9 @@ class PickupScreeningService : CallScreeningService() {
                 alwaysScreen = policy.alwaysScreen.toSet(),
                 activeSims = PhoneUtils.activeSimCount(this),
                 configuredSims = configuredSims,
+                ringVerifiedBusiness = policy.ringVerifiedBusiness,
+                ringRepeatCallers = policy.ringRepeatCallers,
+                lastSentToAssistantMillis = number?.let { RecentScreens.lastSent(this, it) },
             )
         )
     }

@@ -1,4 +1,10 @@
-"""Plans: a 7-day full trial, then Free (limited calls per month) or Pro."""
+"""Plans: a 7-day full trial, then Free (limited calls per month) or Pro.
+
+Your own calls are never held back: every plan keeps live transcripts, quick replies, joining a
+call, summaries, transcripts and recordings. Plans differ only in how many calls the assistant
+answers each month and in AI outbound calls. (Equal AI's users were angriest about paying to hear
+their own calls.)
+"""
 
 from dataclasses import dataclass
 from datetime import UTC, datetime
@@ -45,4 +51,4 @@ async def entitlement_for(session: AsyncSession, user: User) -> Entitlement:
     used = await calls_this_month(session, user.id)
     left = max(0, get_settings().free_calls_per_month - used)
     level = "free" if left > 0 else "limited"
-    return Entitlement(level, False, False, False, left, trial_ends, plan_expires)
+    return Entitlement(level, True, False, True, left, trial_ends, plan_expires)

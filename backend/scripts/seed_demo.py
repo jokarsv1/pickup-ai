@@ -30,6 +30,39 @@ ASSISTANT_NUMBER = "+918047491899"
 
 CALLS = [
     {
+        # A call the carrier never delivered: shows as a missed call with Call back.
+        "ago": timedelta(hours=1, minutes=10),
+        "from": "+919900445566",
+        "mode": "not_reached",
+        "caller_name": None,
+        "org": None,
+        "category": None,
+        "reason": "Didn't reach your assistant",
+        "summary": "+91 99004 45566 called, but the call didn't reach your assistant: your carrier didn't forward it, or they hung up while it was being forwarded. Call back if you need to.",
+        "urgency": "normal",
+        "duration": 0,
+        "actions": [],
+        "transcript": [],
+    },
+    {
+        # TRAI's verified 1600 series: a real bank, never tagged spam.
+        "ago": timedelta(hours=3, minutes=5),
+        "from": "+911600123456",
+        "caller_name": "Rahul",
+        "org": "HDFC Bank",
+        "category": "bank_finance",
+        "reason": "Credit card bill due on 20 November",
+        "summary": "Says he's Rahul from HDFC Bank (a verified 1600 bank number): your credit card bill of ₹18,240 is due on 20 November. He didn't ask for any details.",
+        "urgency": "normal",
+        "duration": 48,
+        "actions": [("reminder", "Pay the HDFC card bill by 20 Nov")],
+        "transcript": [
+            ("assistant", "नमस्ते, मैं Pickup हूँ, Asha की AI assistant. अभी Asha से बात नहीं हो पाएगी. आप कौन बोल रहे हैं?"),
+            ("caller", "Hi, this is Rahul from HDFC Bank. Just a reminder that the credit card bill of 18,240 rupees is due on the 20th."),
+            ("assistant", "Thanks Rahul. I'll tell Asha the bill of 18,240 rupees is due on 20 November."),
+        ],
+    },
+    {
         "ago": timedelta(minutes=38),
         "from": "+919845012345",
         "caller_name": "Ramesh",
@@ -174,7 +207,7 @@ async def seed(phone: str, pool: list[str]) -> None:
 
         def add_call(spec: dict, state: str, started) -> Call:
             call = Call(
-                user_id=user.id, line_id=line.id, provider="exotel", from_number=spec["from"], to_number=ASSISTANT_NUMBER,
+                user_id=user.id, line_id=line.id, provider="exotel", mode=spec.get("mode", "screen"), from_number=spec["from"], to_number=ASSISTANT_NUMBER,
                 caller_known_name=spec.get("known"), caller_name=spec.get("caller_name"), caller_org=spec.get("org"),
                 category=spec["category"], reason=spec["reason"], urgency=spec.get("urgency", "normal"),
                 is_spam=spec.get("spam", False), suggested_replies=spec.get("replies", []), summary=spec.get("summary"),

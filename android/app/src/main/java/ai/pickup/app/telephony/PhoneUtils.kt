@@ -92,21 +92,6 @@ object PhoneUtils {
         }
     }
 
-    /** All contacts with their numbers, for the "who's calling" names the assistant uses. */
-    fun readContacts(context: Context): List<Pair<String, String>> {
-        if (!hasPermission(context, Manifest.permission.READ_CONTACTS)) return emptyList()
-        val out = ArrayList<Pair<String, String>>()
-        val projection = arrayOf(ContactsContract.CommonDataKinds.Phone.DISPLAY_NAME, ContactsContract.CommonDataKinds.Phone.NUMBER)
-        context.contentResolver.query(ContactsContract.CommonDataKinds.Phone.CONTENT_URI, projection, null, null, null)?.use { cursor ->
-            while (cursor.moveToNext()) {
-                val name = cursor.getString(0) ?: continue
-                val number = cursor.getString(1) ?: continue
-                out += name to number
-            }
-        }
-        return out
-    }
-
     fun saveContactIntent(name: String, number: String): Intent =
         Intent(ContactsContract.Intents.Insert.ACTION)
             .setType(ContactsContract.RawContacts.CONTENT_TYPE)

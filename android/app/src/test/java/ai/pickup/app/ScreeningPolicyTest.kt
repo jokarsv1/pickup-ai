@@ -21,10 +21,32 @@ class ScreeningPolicyTest {
         activeSims: Int = 1,
         configuredSims: Int = 1,
         incoming: Boolean = true,
+        ringVerifiedBusiness: Boolean = true,
+        ringRepeatCallers: Boolean = true,
+        lastSent: Long? = null,
     ) = ScreeningPolicy.Input(
         number, incoming, isContact, mode, screenContacts, lineVerified, snoozedUntil, now, "+918047491899",
-        verifyUntil, alwaysRing, alwaysScreen, activeSims, configuredSims,
+        verifyUntil, alwaysRing, alwaysScreen, activeSims, configuredSims, ringVerifiedBusiness, ringRepeatCallers, lastSent,
     )
+
+    // TRAI's verified business numbers: banks, insurers, government (1600) and service calls (1601).
+    @Test fun verifiedBanksAndGovernmentRing() = assertEquals(RING, ScreeningPolicy.decide(input(number = "+911600123456")))
+    @Test fun verifiedServiceCallsRing() = assertEquals(RING, ScreeningPolicy.decide(input(number = "+911601234567")))
+    @Test fun verifiedBusinessCanGoToAssistantIfChosen() =
+        assertEquals(SEND_TO_ASSISTANT, ScreeningPolicy.decide(input(number = "+911600123456", ringVerifiedBusiness = false)))
+    @Test fun promotionalSeriesIsTreatedLikeAnyUnknownCaller() =
+        assertEquals(SEND_TO_ASSISTANT, ScreeningPolicy.decide(input(number = "+911400123456")))
+
+    // Someone urgent calls again: the second call within 3 minutes rings.
+    @Test fun repeatCallerRings() = assertEquals(RING, ScreeningPolicy.decide(input(lastSent = now - 60_000)))
+    @Test fun repeatAfterWindowGoesToAssistant() =
+        assertEquals(SEND_TO_ASSISTANT, ScreeningPolicy.decide(input(lastSent = now - ScreeningPolicy.REPEAT_WINDOW_MILLIS - 1)))
+    @Test fun repeatCallerRuleCanBeTurnedOff() =
+        assertEquals(SEND_TO_ASSISTANT, ScreeningPolicy.decide(input(lastSent = now - 60_000, ringRepeatCallers = false)))
+    @Test fun alwaysScreenBeatsRepeatAndVerified() {
+        assertEquals(SEND_TO_ASSISTANT, ScreeningPolicy.decide(input(lastSent = now - 1_000, alwaysScreen = setOf("+917000000001"))))
+        assertEquals(SEND_TO_ASSISTANT, ScreeningPolicy.decide(input(number = "+911600123456", alwaysScreen = setOf("+911600123456"))))
+    }
 
     @Test fun unknownCallerGoesToAssistant() = assertEquals(SEND_TO_ASSISTANT, ScreeningPolicy.decide(input()))
     @Test fun hiddenNumberGoesToAssistant() = assertEquals(SEND_TO_ASSISTANT, ScreeningPolicy.decide(input(number = null)))

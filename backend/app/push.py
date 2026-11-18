@@ -124,6 +124,10 @@ class ApnsPush:
             return {"title": "Your phone will ring", "body": "Answer it to talk to the caller."}
         if kind == "line.verified":
             return {"title": "Call forwarding works", "body": "Your assistant will answer the calls you decline or miss."}
+        if kind == "call.missed":
+            return {"title": f"Missed call: {data.get('title') or 'Unknown caller'}", "body": "It didn't reach your assistant. Tap to call back."}
+        if kind == "forwarding.problem":
+            return {"title": "Calls aren't reaching your assistant", "body": "Your carrier may have turned off forwarding. Tap to fix it in a minute."}
         return None
 
     @staticmethod

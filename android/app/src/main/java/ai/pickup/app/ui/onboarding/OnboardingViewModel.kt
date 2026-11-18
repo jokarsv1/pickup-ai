@@ -4,7 +4,6 @@ import ai.pickup.app.AppGraph
 import ai.pickup.app.auth.PhoneAuth
 import ai.pickup.app.data.ApiException
 import ai.pickup.app.data.AssistantPatch
-import ai.pickup.app.data.ContactBody
 import ai.pickup.app.data.LineDto
 import ai.pickup.app.data.MePatch
 import ai.pickup.app.data.PublicConfig
@@ -218,13 +217,6 @@ class OnboardingViewModel(private val graph: AppGraph, private val forcedStep: S
             } catch (e: Exception) {
                 _state.update { it.copy(busy = false, error = e.message) }
             }
-        }
-    }
-
-    fun syncContacts(context: Context) {
-        viewModelScope.launch {
-            val grouped = PhoneUtils.readContacts(context).groupBy({ it.first }, { it.second })
-            if (grouped.isNotEmpty()) runCatching { repo.syncContacts(grouped.map { (name, numbers) -> ContactBody(name, numbers.distinct()) }) }
         }
     }
 

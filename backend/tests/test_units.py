@@ -158,3 +158,51 @@ async def test_live_activity_pushes(app_env):
         assert state == {"title": "Ramesh · Blue Dart", "reason": "Parcel at the gate", "lastLine": "Caller: OTP chahiye", "state": "live"}
         await apns.send_to_user(user_id, {"type": "call.ended", "call_id": call_id, "title": "Ramesh · Blue Dart"})
         assert jsonlib.loads(update.calls.last.request.content)["aps"]["event"] == "end"
+
+
+async def test_greeting_audio_is_ready_before_the_call_connects():
+    """The first "Hello" shouldn't wait for speech synthesis: it's fetched ahead and cached."""
+    import base64
+
+    import respx
+    from httpx import Response
+
+    from app.config import get_settings
+    from app.voice import greeting_cache
+
+    s = get_settings()
+    saved = (s.tts_provider, s.sarvam_api_key)
+    s.tts_provider, s.sarvam_api_key = "sarvam", "test-key"
+    greeting_cache.clear()
+    pcm = b"\x01\x02" * 4000
+    wav = b"RIFF" + b"\x00" * 40 + pcm
+    try:
+        with respx.mock(assert_all_called=False) as mock:
+            route = mock.post(greeting_cache.SARVAM_URL).mock(return_value=Response(200, json={"audios": [base64.b64encode(wav).decode()]}))
+            assert await greeting_cache.get("Hi", "ritu", "en-IN", 8000, wait=0) is None  # nothing fetched yet
+            greeting_cache.prefetch("Hi", "ritu", "en-IN", 8000)
+            greeting_cache.prefetch("Hi", "ritu", "en-IN", 8000)  # already running: no second request
+            assert await greeting_cache.get("Hi", "ritu", "en-IN", 8000, wait=2) == pcm  # WAV header stripped
+            assert route.call_count == 1
+            body = route.calls[0].request.content
+            assert b'"speaker":"ritu"' in body.replace(b" ", b"") and b'"speech_sample_rate":8000' in body.replace(b" ", b"")
+            assert route.calls[0].request.headers["api-subscription-key"] == "test-key"
+            greeting_cache.prefetch("Hi", "ritu", "en-IN", 8000)  # cached: no request
+            assert route.call_count == 1
+
+            mock.post(greeting_cache.SARVAM_URL).mock(return_value=Response(500, text="busy"))
+            greeting_cache.prefetch("Namaste", "ritu", "hi-IN", 8000)
+            assert await greeting_cache.get("Namaste", "ritu", "hi-IN", 8000, wait=2) is None  # falls back to streaming
+    finally:
+        s.tts_provider, s.sarvam_api_key = saved
+        greeting_cache.clear()
+
+
+def test_trai_designated_series():
+    from app.phone import designated_series
+
+    assert designated_series("+911600123456") == "bank_gov"
+    assert designated_series("+911601234567") == "service"
+    assert designated_series("+911400123456") == "promo"
+    assert designated_series("+919876543210") is None
+    assert designated_series(None) is None

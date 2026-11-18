@@ -156,6 +156,16 @@ class CallViewModel(private val graph: AppGraph, val callId: String) : ViewModel
         }
     }
 
+    private var lastTypingSignal = 0L
+
+    /** Tells the assistant you're writing a reply, so it holds the caller instead of hanging up. */
+    fun typing() {
+        val now = System.currentTimeMillis()
+        if (now - lastTypingSignal < 10_000) return
+        lastTypingSignal = now
+        viewModelScope.launch { runCatching { repo.signalTyping(callId) } }
+    }
+
     fun say(text: String) {
         if (text.isBlank()) return
         _state.update { it.copy(sending = true) }
@@ -249,7 +259,10 @@ fun LiveCallScreen(vm: CallViewModel, onBack: () -> Unit, onOpenDetail: (String)
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         OutlinedTextField(
                             value = draft,
-                            onValueChange = { draft = it.take(300) },
+                            onValueChange = {
+                                if (it.isNotBlank()) vm.typing() // the assistant asks the caller to hold on
+                                draft = it.take(300)
+                            },
                             placeholder = { Text("Tell your assistant what to say") },
                             modifier = Modifier.weight(1f),
                             maxLines = 3,
@@ -381,6 +394,8 @@ fun CallDetailScreen(vm: CallViewModel, onBack: () -> Unit, onOpenLive: (String)
                 Pill(call.categoryLabel ?: style.label, style.color)
                 if (call.isSpam && call.category != "scam") Pill("Likely spam", LocalPickupColors.current.spam)
                 if (call.direction == "outbound") Pill("Your assistant called them", MaterialTheme.colorScheme.primary)
+                if (call.mode == "not_reached") Pill("Didn't reach your assistant", LocalPickupColors.current.warning)
+                call.callerLabel?.let { Pill(it, LocalPickupColors.current.success) }
             }
             Spacer(Modifier.height(16.dp))
             Card(colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerLowest), modifier = Modifier.fillMaxWidth()) {

@@ -7,6 +7,8 @@ take over, end) come back on the call's control topic.
 
 import asyncio
 import contextlib
+import time
+from datetime import timedelta
 from typing import Any
 
 from fastapi import WebSocket
@@ -14,7 +16,15 @@ from loguru import logger
 from pipecat.adapters.llm.schemas.function_schema import FunctionSchema
 from pipecat.adapters.llm.schemas.tools_schema import ToolsSchema
 from pipecat.audio.vad.silero import SileroVADAnalyzer
-from pipecat.frames.frames import EndFrame, Frame, FunctionCallResultProperties, LLMMessagesAppendFrame, TranscriptionFrame, TTSSpeakFrame
+from pipecat.frames.frames import (
+    EndFrame,
+    Frame,
+    FunctionCallResultProperties,
+    LLMMessagesAppendFrame,
+    OutputAudioRawFrame,
+    TranscriptionFrame,
+    TTSSpeakFrame,
+)
 from pipecat.pipeline.pipeline import Pipeline
 from pipecat.pipeline.worker import PipelineParams, PipelineWorker
 from pipecat.processors.aggregators.llm_context import LLMContext
@@ -37,6 +47,7 @@ from app.packs import CATEGORIES
 from app.services import calls as call_service
 from app.storage import pcm_to_wav, save_recording
 from app.telephony.registry import get_provider
+from app.voice import greeting_cache
 from app.voice.services import make_llm, make_serializer, make_stt, make_tts, missing_keys, voice_gender
 
 SAMPLE_RATE = 8000  # narrowband telephone audio
@@ -99,6 +110,45 @@ async def load_context(call_id: str) -> tuple[Call, User, Line | None, CallConte
     return call, user, line, ctx, prefs, ent.live_controls
 
 
+def greeting_language(ctx: CallContext) -> str:
+    return ctx.languages[0] if ctx.languages else "en-IN"
+
+
+async def warm_greeting(user_id: str) -> None:
+    """Synthesise the user's usual greeting now, so their next call starts speaking instantly."""
+    if not greeting_cache.enabled():
+        return
+    async with sessionmaker()() as session:
+        user = await session.get(User, user_id)
+        if user is None:
+            return
+        prefs = await session.get(AssistantSettings, user_id) or AssistantSettings(user_id=user_id)
+    ctx = CallContext(
+        mode="screen",
+        owner_name=user.name or "the user",
+        assistant_name=prefs.assistant_name or "Pickup",
+        languages=list(prefs.languages or [user.language]),
+        caller_number=None,
+        record_calls=prefs.record_calls if prefs.record_calls is not None else True,
+        assistant_gender=voice_gender(prefs.voice or "ritu"),
+    )
+    greeting_cache.prefetch(greeting_for(ctx, prefs.greeting), prefs.voice or "ritu", greeting_language(ctx), SAMPLE_RATE)
+
+
+async def warm_recent_greetings(days: int = 14, limit: int = 300) -> None:
+    """At startup (the cache is in memory): warm greetings for users with recent calls."""
+    if not greeting_cache.enabled():
+        return
+    since = utcnow() - timedelta(days=days)
+    async with sessionmaker()() as session:
+        user_ids = (
+            await session.scalars(select(Call.user_id).where(Call.started_at >= since).group_by(Call.user_id).limit(limit))
+        ).all()
+    for user_id in user_ids:
+        await warm_greeting(user_id)
+        await asyncio.sleep(0.2)  # gentle on the TTS rate limit
+
+
 class CallerTextGuard(FrameProcessor):
     """Strips square brackets from what the caller says.
 
@@ -124,6 +174,10 @@ class VoiceSession:
         self._takeover_started = False
         self._ending = False
         self.end_reason = "hangup"
+        # The owner is typing a reply in the app: hold the caller, don't hang up on them.
+        self._owner_typing_until = 0.0
+        self._typing_announced_at = 0.0
+        self._end_refused_for_typing = False
 
     async def run(self) -> None:
         call, user, line, ctx, prefs, live_controls = await load_context(self.call_id)
@@ -172,12 +226,26 @@ class VoiceSession:
             idle_timeout_secs=45,
         )
 
+        language = greeting_language(ctx)
+        greeting_cache.prefetch(greeting, prefs.voice, language, SAMPLE_RATE)
+
         @transport.event_handler("on_client_connected")
         async def _connected(_transport, _ws):
-            await call_service.set_state(self.call_id, "live", answered_at=utcnow())
+            # Speak first; bookkeeping after. Every millisecond here is silence for the caller.
             if prefs.record_calls and call.mode != "demo":
                 await recorder.start_recording()
-            await self.worker.queue_frames([TTSSpeakFrame(greeting)])
+            audio = await greeting_cache.get(greeting, prefs.voice, language, SAMPLE_RATE, wait=0.4)
+            if audio:
+                await self.worker.queue_frames(
+                    [
+                        OutputAudioRawFrame(audio=audio, sample_rate=SAMPLE_RATE, num_channels=1),
+                        LLMMessagesAppendFrame(messages=[{"role": "assistant", "content": greeting}], run_llm=False),
+                    ]
+                )
+                _spawn(call_service.append_transcript(self.call_id, "assistant", greeting))
+            else:
+                await self.worker.queue_frames([TTSSpeakFrame(greeting)])
+            _spawn(call_service.set_state(self.call_id, "live", answered_at=utcnow()))
 
         @transport.event_handler("on_client_disconnected")
         async def _disconnected(_transport, _ws):
@@ -239,6 +307,14 @@ class VoiceSession:
         return tools
 
     async def _end_call(self, params: FunctionCallParams) -> None:
+        if time.monotonic() < self._owner_typing_until and not self._end_refused_for_typing:
+            # Equal AI's users: "it told the caller I'm busy and dropped the call while I was writing a message".
+            self._end_refused_for_typing = True
+            await params.result_callback(
+                {"status": "not_ended", "note": f"{self.owner_first} is typing a message for the caller. Ask them to hold on a moment instead."},
+                properties=FunctionCallResultProperties(run_llm=True),
+            )
+            return
         self.end_reason = str(params.arguments.get("reason") or "completed")[:40]
         await params.result_callback({"status": "ending"}, properties=FunctionCallResultProperties(run_llm=False))
         await self._end_soon()
@@ -259,7 +335,19 @@ class VoiceSession:
                 command = await queue.get()
                 kind = command.get("type")
                 try:
-                    if kind == "say" and command.get("text"):
+                    if kind == "typing":
+                        now = time.monotonic()
+                        self._owner_typing_until = now + 25
+                        self._end_refused_for_typing = False
+                        if now - self._typing_announced_at > 30:
+                            self._typing_announced_at = now
+                            note = (
+                                f"[{self.owner_first} is typing a message for the caller right now. In one short sentence, "
+                                f"in the caller's language, ask them to hold on a moment for {self.owner_first}'s reply. Don't end the call.]"
+                            )
+                            await self.worker.queue_frames([LLMMessagesAppendFrame(messages=[{"role": "user", "content": note}], run_llm=True)])
+                    elif kind == "say" and command.get("text"):
+                        self._owner_typing_until = 0.0
                         text = str(command["text"])[:300]
                         await call_service.append_transcript(self.call_id, "owner", text)
                         note = f"[{self.owner_first} says: {text}] Relay this to the caller now, in their language."
@@ -313,6 +401,8 @@ class VoiceSession:
         await call_service.finish_call(self.call_id, self.end_reason, recording_key)
         if self.call.mode != "demo":
             _spawn(summarize_call(self.call_id))
+        if self.call.mode == "screen":
+            _spawn(warm_greeting(self.user.id))  # keep the next call's greeting instant
 
 
 async def run_call(websocket: WebSocket, call_id: str, transport_type: str, call_data: Any) -> None:

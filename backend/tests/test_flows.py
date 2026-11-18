@@ -1,13 +1,13 @@
 import asyncio
 from datetime import timedelta
 
-from sqlalchemy import select
+from sqlalchemy import func, select
 
 from app.ai.schemas import CallInsights, LiveIntent, SuggestedAction
 from app.ai.understanding import LiveIntentTracker, summarize_call
 from app.db import sessionmaker, utcnow
 from app.events import bus, call_topic, user_topic
-from app.models import Call, Line, OutboundTask, User
+from app.models import Call, ContactEntry, Line, NumberReputation, OutboundTask, ScreeningHint, SupportReport, User
 from app.services import calls as call_service
 from app.services.outbound import dial
 from tests.conftest import setup_line, sign_in
@@ -58,7 +58,13 @@ async def test_inbound_call_routes_to_agent_with_hint_and_contacts(app_env):
     c = app_env.client
     headers = await sign_in(c)
     await setup_line(c, headers)
-    await c.post("/v1/contacts/sync", json={"contacts": [{"name": "Ravi (landlord)", "numbers": ["09811122233"]}]}, headers=headers)
+    # Address books never leave the phone: the retired sync endpoint stores nothing.
+    synced = await c.post("/v1/contacts/sync", json={"contacts": [{"name": "Ravi (landlord)", "numbers": ["09811122233"]}]}, headers=headers)
+    assert synced.json() == {"saved": 0}
+    async with sessionmaker()() as s:
+        assert await s.scalar(select(func.count()).select_from(ContactEntry)) == 0
+    # A saved contact the user chose to screen: the phone sends that one name with the call's hint.
+    await c.post("/v1/screening/hints", json={"caller_number": "09811122233", "caller_name": "Ravi (landlord)"}, headers=headers)
 
     resp = await c.post("/telephony/twilio/inbound", data={"CallSid": "CA1", "From": "+919811122233", "To": "+918047491899"})
     assert resp.status_code == 200 and "<Stream" in resp.text and "/telephony/media/call_" in resp.text
@@ -147,7 +153,8 @@ async def test_live_transcript_intent_and_summary(app_env):
     assert (await c.get(f"/v1/calls/{call_id}", headers=headers)).status_code == 404
 
 
-async def test_live_controls_need_pro_after_trial(app_env):
+async def test_free_plan_keeps_your_own_calls(app_env):
+    """After the trial you still see, steer and replay your own calls; only volume and outbound are Pro."""
     c = app_env.client
     headers, call_id = await _live_call(app_env)
     async with sessionmaker()() as s:
@@ -155,9 +162,10 @@ async def test_live_controls_need_pro_after_trial(app_env):
         user.trial_ends_at = utcnow() - timedelta(days=1)
         await s.commit()
     r = await c.post(f"/v1/calls/{call_id}/say", json={"text": "hello"}, headers=headers)
-    assert r.status_code == 402
+    assert r.status_code == 202
     ent = (await c.get("/v1/me/entitlement", headers=headers)).json()
     assert ent["level"] == "free" and ent["calls_left_this_month"] == 14
+    assert ent["live_controls"] and ent["recordings"] and not ent["outbound_calls"]
 
 
 async def test_assistant_chat_schedules_a_call(app_env):
@@ -355,3 +363,96 @@ async def test_apk_upload_and_download(app_env, tmp_path):
     finally:
         s.downloads_dir, s.admin_token = saved
         s.ios_testflight_url = None
+
+
+async def test_calls_the_carrier_never_delivered_become_missed_calls(app_env):
+    """Carriers drop 30-40% of forwarded calls. The phone says which calls it sent on; any that
+    never arrive become a missed call with Call back, and a run of them means forwarding broke."""
+    c = app_env.client
+    headers = await sign_in(c)
+    await setup_line(c, headers)
+    me = (await c.get("/v1/me", headers=headers)).json()
+    old = utcnow() - timedelta(seconds=120)
+
+    async with bus.subscribe(user_topic(me["id"])) as q:
+        await c.post("/v1/screening/hints", json={"caller_number": "+919811100001"}, headers=headers)
+        async with sessionmaker()() as s:
+            (await s.scalar(select(ScreeningHint))).created_at = old
+            await s.commit()
+        assert await call_service.sweep_unreached() == 1
+        event = await asyncio.wait_for(q.get(), 1)
+        assert event["type"] == "call.missed" and "+91 98111 00001" in event["title"]
+
+        # A second one in a row: tell the user their forwarding needs re-dialling (once).
+        await c.post("/v1/screening/hints", json={"caller_number": "+919811100002", "caller_name": "Neha"}, headers=headers)
+        async with sessionmaker()() as s:
+            for hint in (await s.scalars(select(ScreeningHint).where(ScreeningHint.consumed.is_(False)))).all():
+                hint.created_at = old + timedelta(seconds=5)
+            await s.commit()
+        assert await call_service.sweep_unreached() == 1
+        kinds = [(await asyncio.wait_for(q.get(), 1))["type"] for _ in range(2)]
+        assert kinds == ["call.missed", "forwarding.problem"]
+
+    line = (await c.get("/v1/lines/current", headers=headers)).json()
+    assert line["missed_streak"] == 2 and line["forwarding_problem"]
+    page = (await c.get("/v1/calls", headers=headers)).json()["items"]
+    missed = [i for i in page if i["mode"] == "not_reached"]
+    assert len(missed) == 2 and missed[0]["caller_known_name"] == "Neha" and "didn't reach" in missed[0]["summary"]
+    stats = (await c.get("/v1/me/stats", headers=headers)).json()
+    assert stats["calls_handled"] == 0  # missed calls aren't "handled"
+
+    # A fresh hint isn't swept yet, and a call that does arrive resets the streak.
+    await c.post("/v1/screening/hints", json={"caller_number": "+919811100003"}, headers=headers)
+    assert await call_service.sweep_unreached() == 0
+    await c.post("/telephony/twilio/inbound", data={"CallSid": "CA77", "From": "+919811100003", "To": "+918047491899"})
+    line = (await c.get("/v1/lines/current", headers=headers)).json()
+    assert line["missed_streak"] == 0 and not line["forwarding_problem"]
+
+
+async def test_trai_business_series_are_never_spam(app_env):
+    """TRAI Regulation 34A: apps must not spam-tag 140/1600/1601 numbers; banks and government ring."""
+    c = app_env.client
+    headers = await sign_in(c)
+    await setup_line(c, headers)
+    policy = (await c.get("/v1/screening/policy", headers=headers)).json()
+    assert policy["ring_verified_business"] is True and policy["ring_repeat_callers"] is True
+    updated = (await c.patch("/v1/assistant", json={"ring_verified_business": False}, headers=headers)).json()
+    assert updated["ring_verified_business"] is False
+
+    await c.post("/telephony/twilio/inbound", data={"CallSid": "CA60", "From": "+911600123456", "To": "+918047491899"})
+    async with sessionmaker()() as s:
+        call = await s.scalar(select(Call).where(Call.provider_call_id == "CA60"))
+        call_id = call.id
+    insights = CallInsights(
+        caller_name="Rahul",
+        organisation="HDFC Bank",
+        category="bank_finance",
+        reason="Card offer",
+        summary="Says he's from HDFC Bank, offering a credit card.",
+        urgency="low",
+        is_spam=True,
+        actions=[SuggestedAction(type="block", title="Block this number")],
+    )
+    await call_service.apply_insights(call_id, insights)
+    detail = (await c.get(f"/v1/calls/{call_id}", headers=headers)).json()
+    assert detail["is_spam"] is False and detail["actions"] == []
+    assert detail["caller_label"] == "Verified bank or government number"
+    async with sessionmaker()() as s:
+        assert await s.scalar(select(func.count()).select_from(NumberReputation)) == 0
+        note = await call_service.reputation_note(s, "+911400123456")
+    assert "registered" in note and "not spam" in note
+
+
+async def test_typing_holds_the_call_and_support_reports(app_env):
+    c = app_env.client
+    headers, call_id = await _live_call(app_env)
+    async with bus.subscribe(call_topic(call_id)) as q:
+        assert (await c.post(f"/v1/calls/{call_id}/typing", headers=headers)).status_code == 202
+        assert (await asyncio.wait_for(q.get(), 1)) == {"type": "typing"}
+
+    r = await c.post("/v1/support/report", json={"message": "Calls stopped reaching the assistant", "diagnostics": {"app_version": "0.1.0", "screening_role": True}}, headers=headers)
+    assert r.status_code == 201
+    async with sessionmaker()() as s:
+        report = await s.scalar(select(SupportReport))
+    assert report.diagnostics["app"]["screening_role"] is True
+    assert report.diagnostics["server"]["line_status"] in ("pending", "verified")

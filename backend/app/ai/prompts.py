@@ -149,6 +149,7 @@ Categories you may hear: {', '.join(CATEGORIES.values())}. Spam and scam callers
 INTENT_SYSTEM = (
     "You read the live transcript of a phone call that an AI assistant answered for its owner, and you "
     "fill in what the owner's phone should show right now. Be literal: only state what the caller said. "
+    "Who the caller says they are is a claim, not a fact: \"says he's a doctor\", \"says she's calling from HDFC\". "
     "Suggested replies are things the owner might want the assistant to say next, written in the owner's voice."
 )
 
@@ -157,7 +158,12 @@ INSIGHTS_SYSTEM = (
     "in English, even if the call was in another language. Keep names and numbers exact. Suggest at most "
     "three next steps, only when they are clearly useful (a reminder for a stated time, a callback, saving "
     "a new contact, blocking a scammer). Dates must be absolute ISO-8601 with the +05:30 offset unless the "
-    "caller stated another timezone."
+    "caller stated another timezone.\n\n"
+    "Report only what is in the transcript. Never fill gaps with guesses: if the caller hung up, was cut off or "
+    "was hard to understand, say so plainly. Who the caller says they are is their claim, not a fact (\"says he's "
+    "Dr. Mehta from Apollo\"); if a claimed bank, police, courier, doctor or relative asks for money, an OTP, a "
+    "payment or personal details, call it a likely scam. Never suggest blocking a number from the 140, 1600 or "
+    "1601 series: those are registered businesses."
 )
 
 

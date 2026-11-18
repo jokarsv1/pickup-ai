@@ -15,7 +15,6 @@ from app.events import bus, user_topic
 from app.models import (
     Call,
     CallAction,
-    ContactEntry,
     Line,
     NumberPoolEntry,
     NumberReputation,
@@ -24,10 +23,15 @@ from app.models import (
     User,
 )
 from app.packs import CATEGORIES
-from app.phone import normalize, pretty, reputation_hash
+from app.phone import SERIES_LABELS, designated_series, normalize, pretty, reputation_hash
 from app.push import Throttle, get_push
 
 HINT_WINDOW = timedelta(seconds=90)
+# A call the phone sent on that hasn't arrived after this long never will: the carrier dropped it.
+UNREACHED_AFTER = timedelta(seconds=75)
+# This many in a row and we tell the user their forwarding needs re-dialling.
+FORWARDING_PROBLEM_STREAK = 2
+FORWARDING_ALERT_EVERY = timedelta(hours=12)
 
 
 def aware(dt: datetime | None) -> datetime | None:
@@ -78,6 +82,7 @@ async def route_inbound(
     assert user is not None
     caller = from_number
     mode = "screen"
+    hint: ScreeningHint | None = None
     if from_number and from_number == line.phone_e164:
         hint = await _take_recent_hint(session, user.id, now)
         if hint is not None:
@@ -85,19 +90,18 @@ async def route_inbound(
         else:
             mode = "demo"  # the user is calling their own assistant to try it
     elif from_number:
-        await _take_recent_hint(session, user.id, now, caller_number=from_number)
+        hint = await _take_recent_hint(session, user.id, now, caller_number=from_number)
 
     if mode == "screen":
         ent = await entitlement_for(session, user)
         if ent.level == "limited":
             mode = "message_only"
 
-    known_name = None
-    if caller:
-        known_name = await session.scalar(
-            select(ContactEntry.name).where(ContactEntry.user_id == user.id, ContactEntry.number_e164 == caller)
-        )
+    # A saved contact's name comes from the phone with this call's hint; address books never upload.
+    known_name = hint.caller_name if hint is not None and hint.caller_number == caller else None
     line.last_forwarded_at = now
+    if mode != "demo":
+        line.missed_streak = 0  # forwarding works
     if line.status == "pending" and mode == "screen":
         line.status = "verified"  # a real forwarded call proves forwarding works
         line.verified_at = now
@@ -253,7 +257,7 @@ async def apply_intent(call_id: str, intent: LiveIntent) -> None:
         call.category = intent.category
         call.reason = intent.reason
         call.urgency = intent.urgency
-        call.is_spam = intent.is_spam
+        call.is_spam = intent.is_spam and designated_series(call.from_number) is None
         call.suggested_replies = intent.suggested_replies[:3]
         await session.commit()
         event = {
@@ -307,10 +311,13 @@ async def apply_insights(call_id: str, insights: CallInsights) -> None:
         call.reason = insights.reason
         call.summary = insights.summary
         call.urgency = insights.urgency
-        call.is_spam = insights.is_spam
+        series = designated_series(call.from_number)
+        call.is_spam = insights.is_spam and series is None  # TRAI: regulated series are never tagged spam
         call.state = "summarized"
         actions: list[CallAction] = []
         for action in insights.actions[:3]:
+            if action.type == "block" and series is not None:
+                continue
             payload: dict[str, Any] = {}
             if action.due_at:
                 payload["due_at"] = action.due_at
@@ -323,7 +330,7 @@ async def apply_insights(call_id: str, insights: CallInsights) -> None:
                 payload["name"] = action.contact_name or insights.caller_name or ""
             actions.append(CallAction(call_id=call_id, user_id=call.user_id, type=action.type, title=action.title, payload=payload))
         session.add_all(actions)
-        if call.from_number:
+        if call.from_number and series is None:
             await _update_reputation(session, call.from_number, insights)
         await session.commit()
         event = {
@@ -360,6 +367,9 @@ async def _update_reputation(session: AsyncSession, number: str, insights: CallI
 async def reputation_note(session: AsyncSession, number: str | None) -> str | None:
     if not number:
         return None
+    series = designated_series(number)
+    if series is not None:
+        return f"This is a {SERIES_LABELS[series].lower()} registered with TRAI, not spam."
     rep = await session.get(NumberReputation, reputation_hash(number))
     if rep is None or not rep.total_calls:
         return None
@@ -372,3 +382,89 @@ async def reputation_note(session: AsyncSession, number: str | None) -> str | No
     if rep.top_org:
         parts.append(f"Often identifies as {rep.top_org}.")
     return " ".join(parts) or None
+
+
+async def sweep_unreached(now: datetime | None = None) -> int:
+    """Turns calls the phone sent on, but that never reached the assistant, into missed calls.
+
+    Carriers silently drop 30-40% of forwarded calls and sometimes forget forwarding altogether.
+    Without this the user would never know someone called. After a few in a row, we tell them
+    to re-dial their forwarding code.
+    """
+    now = now or utcnow()
+    events: list[tuple[str, dict, dict | None]] = []
+    async with sessionmaker()() as session:
+        hints = (
+            await session.scalars(
+                select(ScreeningHint)
+                .where(ScreeningHint.consumed.is_(False), ScreeningHint.decision == "declined", ScreeningHint.created_at < now - UNREACHED_AFTER)
+                .order_by(ScreeningHint.created_at)
+                .limit(200)
+            )
+        ).all()
+        for hint in hints:
+            hint.consumed = True
+            created = aware(hint.created_at) or now
+            if created < now - timedelta(hours=6):
+                continue  # stale (the server was down): don't flood the user
+            if await is_system_number(session, hint.caller_number):
+                continue  # our own forwarding test or a take-over transfer
+            line = await session.scalar(
+                select(Line).where(Line.user_id == hint.user_id, Line.status != "released").order_by(Line.created_at.desc())
+            )
+            if line is None:
+                continue
+            who = hint.caller_name or pretty(hint.caller_number)
+            call = Call(
+                user_id=hint.user_id,
+                line_id=line.id,
+                direction="inbound",
+                mode="not_reached",
+                provider="carrier",
+                from_number=hint.caller_number,
+                to_number=line.assistant_number,
+                caller_known_name=hint.caller_name,
+                state="summarized",
+                started_at=created,
+                ended_at=created,
+                duration_seconds=0,
+                end_reason="not_forwarded",
+                reason="Didn't reach your assistant",
+                summary=(
+                    f"{who} called, but the call didn't reach your assistant: your carrier didn't forward it, "
+                    "or they hung up while it was being forwarded. Call back if you need to."
+                ),
+            )
+            session.add(call)
+            line.missed_streak = (line.missed_streak or 0) + 1
+            alert = None
+            due = line.forwarding_alert_at is None or (aware(line.forwarding_alert_at) or now) < now - FORWARDING_ALERT_EVERY
+            if line.missed_streak >= FORWARDING_PROBLEM_STREAK and due:
+                line.forwarding_alert_at = now
+                alert = {"type": "forwarding.problem", "line_id": line.id, "missed": line.missed_streak}
+            await session.flush()
+            missed = {
+                "type": "call.missed",
+                "call_id": call.id,
+                "title": display_title(call),
+                "caller_number": call.from_number,
+                "summary": call.summary,
+            }
+            events.append((hint.user_id, missed, alert))
+        await session.commit()
+    for user_id, missed, alert in events:
+        await notify(user_id, missed, push=True, collapse_key=missed["call_id"])
+        if alert is not None:
+            await notify(user_id, alert, push=True, collapse_key="forwarding")
+    return len(events)
+
+
+async def unreached_loop(interval: float = 15.0) -> None:
+    import asyncio
+
+    while True:
+        try:
+            await sweep_unreached()
+        except Exception:
+            logger.exception("Unreached-call sweep failed")
+        await asyncio.sleep(interval)

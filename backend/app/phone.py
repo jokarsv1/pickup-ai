@@ -43,6 +43,31 @@ def pretty(e164: str | None) -> str:
         return e164
 
 
+# TRAI's numbering series for regulated business calls (TCCCPR Third Amendment, 18 Sep 2026).
+# Call-management apps must not spam-tag, blanket block or filter these; users may choose to.
+DESIGNATED_SERIES = (
+    ("+911600", "bank_gov"),  # banks, insurers, funds, government: service and transactional
+    ("+911601", "service"),  # service and transactional calls from other sectors (courier, utilities)
+    ("+91140", "promo"),  # registered telemarketers: promotional
+)
+
+SERIES_LABELS = {
+    "bank_gov": "Verified bank or government number",
+    "service": "Verified service number",
+    "promo": "Registered promotional number",
+}
+
+
+def designated_series(e164: str | None) -> str | None:
+    """bank_gov, service or promo for TRAI's designated business series, else None."""
+    if not e164:
+        return None
+    for prefix, kind in DESIGNATED_SERIES:
+        if e164.startswith(prefix):
+            return kind
+    return None
+
+
 def reputation_hash(e164: str) -> str:
     """Salted hash so the shared reputation table never stores raw caller numbers."""
     salt = get_settings().jwt_secret

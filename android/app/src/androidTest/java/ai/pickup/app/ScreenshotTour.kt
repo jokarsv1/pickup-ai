@@ -2,6 +2,8 @@ package ai.pickup.app
 
 import android.graphics.Bitmap
 import androidx.compose.ui.test.hasScrollAction
+import androidx.compose.ui.test.hasText
+import androidx.compose.ui.test.performScrollToNode
 import androidx.compose.ui.test.hasSetTextAction
 import androidx.compose.ui.test.junit4.createAndroidComposeRule
 import androidx.compose.ui.test.onAllNodesWithText
@@ -48,6 +50,12 @@ class ScreenshotTour {
         rule.onAllNodesWithText(text, substring = true)[0].performClick()
     }
 
+    /** Calls further down the list aren't composed until scrolled to. */
+    private fun scrollToAndTap(text: String) {
+        runCatching { rule.onAllNodes(hasScrollAction())[0].performScrollToNode(hasText(text, substring = true)) }
+        tap(text)
+    }
+
     private fun type(value: String) {
         rule.waitUntil(20_000) { rule.onAllNodes(hasSetTextAction()).fetchSemanticsNodes().isNotEmpty() }
         rule.onAllNodes(hasSetTextAction())[0].performTextInput(value)
@@ -90,7 +98,7 @@ class ScreenshotTour {
     fun mainApp() {
         signIn("9800000002", capture = false)
         waitFor("Live:", 30_000)
-        waitFor("Rohit")
+        waitFor("Blue Dart")
         shot("10-home-calls")
 
         tap("Live:")
@@ -98,12 +106,12 @@ class ScreenshotTour {
         shot("11-live-call")
         back()
 
-        tap("Rohit · TalentEdge")
+        scrollToAndTap("Rohit · TalentEdge")
         waitFor("senior product manager")
         shot("12-call-summary")
         back()
 
-        tap("+91 74285 31902")
+        scrollToAndTap("+91 74285 31902")
         waitFor("KYC")
         shot("13-scam-call")
         back()

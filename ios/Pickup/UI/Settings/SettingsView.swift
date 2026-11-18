@@ -1,4 +1,6 @@
 import SwiftUI
+import UIKit
+import UserNotifications
 
 @MainActor
 @Observable
@@ -100,6 +102,15 @@ struct SettingsView: View {
                         LabeledContent("Call forwarding", value: model.line?.isVerified == true ? "Working" : "Not set up")
                     }
                 } header: { Text("Call forwarding") }
+
+                Section {
+                    NavigationLink { ReportProblemView(line: model.line) } label: {
+                        VStack(alignment: .leading) {
+                            Text("Report a problem")
+                            Text("Your setup details go with it, so you don't have to explain them").font(.footnote).foregroundStyle(.secondary)
+                        }
+                    }
+                } header: { Text("Help") }
 
                 Section {
                     Link("Privacy policy", destination: URL(string: API.baseURL + "/legal/privacy")!)
@@ -278,6 +289,77 @@ struct ForwardingSettingsView: View {
             line = try? await API.shared.get("/v1/lines/current")
             if line == nil { line = try? await API.shared.post("/v1/lines", LineBody()) }
             loaded = true
+        }
+    }
+}
+
+
+/// "Report a problem": the user's note plus the setup details support would otherwise ask for.
+/// (Equal AI's users said their support never replied; this makes every report answerable.)
+struct ReportProblemView: View {
+    var line: Line?
+    @Environment(\.dismiss) private var dismiss
+    @State private var message = ""
+    @State private var sending = false
+    @State private var sent = false
+    @State private var error: String?
+
+    var body: some View {
+        Form {
+            Section {
+                TextField("For example: a call from my bank didn't reach the assistant at 3 PM", text: $message, axis: .vertical)
+                    .lineLimit(4...10)
+                    .accessibilityIdentifier("support.message")
+            } footer: {
+                Text("We'll get back to you on your number.")
+            }
+            Section {
+                Button {
+                    Task { await send() }
+                } label: {
+                    if sending { ProgressView() } else { Text("Send") }
+                }
+                .disabled(message.trimmingCharacters(in: .whitespacesAndNewlines).count < 3 || sending || sent)
+            }
+            if sent {
+                Text("Sent with your setup details. Thank you.").foregroundStyle(Color.success)
+            }
+            if let error {
+                Text(error).foregroundStyle(Color.danger)
+            }
+        }
+        .navigationTitle("Report a problem")
+        .navigationBarTitleDisplayMode(.inline)
+    }
+
+    private func send() async {
+        sending = true
+        defer { sending = false }
+        let settings = await UNUserNotificationCenter.current().notificationSettings()
+        var diagnostics: [String: String] = [
+            "platform": "iOS \(UIDevice.current.systemVersion)",
+            "device": Self.deviceModel(),
+            "app_version": Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "",
+            "notifications": settings.authorizationStatus == .authorized ? "on" : "off",
+        ]
+        if let line {
+            diagnostics["line_verified"] = line.isVerified ? "yes" : "no"
+        }
+        do {
+            let _: Empty = try await API.shared.post("/v1/support/report", SupportReportBody(message: message.trimmingCharacters(in: .whitespacesAndNewlines), diagnostics: diagnostics))
+            sent = true
+            error = nil
+            message = ""
+        } catch {
+            self.error = error.localizedDescription
+        }
+    }
+
+    private static func deviceModel() -> String {
+        var info = utsname()
+        uname(&info)
+        return withUnsafeBytes(of: &info.machine) { raw in
+            String(decoding: raw.prefix { $0 != 0 }, as: UTF8.self)
         }
     }
 }

@@ -3,7 +3,7 @@
 import uuid
 from datetime import datetime
 
-from sqlalchemy import JSON, Boolean, DateTime, ForeignKey, Index, Integer, String, Text, UniqueConstraint
+from sqlalchemy import JSON, Boolean, ForeignKey, Index, Integer, String, Text, UniqueConstraint
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.db import Base, UTCDateTime, utcnow
@@ -75,6 +75,9 @@ class Line(Base):
     verification_pending_until: Mapped[datetime | None] = mapped_column(UTCDateTime())
     verified_at: Mapped[datetime | None] = mapped_column(UTCDateTime())
     last_forwarded_at: Mapped[datetime | None] = mapped_column(UTCDateTime())
+    # Calls the phone sent on that never arrived, in a row: carriers silently drop forwarding.
+    missed_streak: Mapped[int] = mapped_column(Integer, default=0)
+    forwarding_alert_at: Mapped[datetime | None] = mapped_column(UTCDateTime())
     created_at: Mapped[datetime] = mapped_column(UTCDateTime(), default=utcnow)
 
 
@@ -95,6 +98,10 @@ class AssistantSettings(Base):
     urgent_passthrough: Mapped[bool] = mapped_column(Boolean, default=True)
     share_location_with_deliveries: Mapped[bool] = mapped_column(Boolean, default=False)
     delivery_note: Mapped[str | None] = mapped_column(Text)
+    # Banks, insurers and government (1600) and service calls (1601) ring instead of going to the assistant.
+    ring_verified_business: Mapped[bool] = mapped_column(Boolean, default=True)
+    # The same number calling twice within a few minutes rings: urgent callers try again.
+    ring_repeat_callers: Mapped[bool] = mapped_column(Boolean, default=True)
     updated_at: Mapped[datetime] = mapped_column(UTCDateTime(), default=utcnow, onupdate=utcnow)
 
 
@@ -125,9 +132,23 @@ class ScreeningHint(Base):
     id: Mapped[str] = mapped_column(String(40), primary_key=True, default=lambda: new_id("hint"))
     user_id: Mapped[str] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), index=True)
     caller_number: Mapped[str] = mapped_column(String(20))
+    # The contact's name from the phone's address book, for this one call (contacts never upload).
+    caller_name: Mapped[str | None] = mapped_column(String(120))
     decision: Mapped[str] = mapped_column(String(16))
     created_at: Mapped[datetime] = mapped_column(UTCDateTime(), default=utcnow, index=True)
     consumed: Mapped[bool] = mapped_column(Boolean, default=False)
+
+
+class SupportReport(Base):
+    """"Report a problem" from the app, with the setup details we'd otherwise have to ask for."""
+
+    __tablename__ = "support_reports"
+    id: Mapped[str] = mapped_column(String(40), primary_key=True, default=lambda: new_id("sup"))
+    user_id: Mapped[str] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), index=True)
+    message: Mapped[str] = mapped_column(Text)
+    diagnostics: Mapped[dict] = mapped_column(JSON, default=dict)
+    status: Mapped[str] = mapped_column(String(12), default="open")  # open | answered | closed
+    created_at: Mapped[datetime] = mapped_column(UTCDateTime(), default=utcnow, index=True)
 
 
 class Call(Base):

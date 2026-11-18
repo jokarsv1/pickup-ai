@@ -39,6 +39,17 @@ final class ScreenshotTour: XCTestCase {
         app.descendants(matching: .any).matching(NSPredicate(format: "label CONTAINS[c] %@", text)).firstMatch
     }
 
+    /// Rows further down a list aren't created until scrolled to.
+    private func scrollTo(_ app: XCUIApplication, _ element: XCUIElement, swipes: Int = 6) {
+        if element.exists && element.isHittable { return }
+        for _ in 0..<3 { app.swipeDown() } // from the top of the list, then down to the row
+        var left = swipes
+        while (!element.exists || !element.isHittable) && left > 0 {
+            app.swipeUp()
+            left -= 1
+        }
+    }
+
     private func signIn(_ app: XCUIApplication, phone: String, capture: Bool) {
         wait(app.buttons["Get started"])
         if capture { shot("01-welcome") }
@@ -76,7 +87,7 @@ final class ScreenshotTour: XCTestCase {
         signIn(app, phone: "9800000002", capture: false)
         let live = element(app, containing: "Live: Sunita")
         wait(live, 30)
-        wait(element(app, containing: "Rohit"))
+        wait(element(app, containing: "Blue Dart"))
         shot("10-home-calls")
 
         live.tap()
@@ -84,13 +95,16 @@ final class ScreenshotTour: XCTestCase {
         shot("11-live-call")
         app.navigationBars.buttons.element(boundBy: 0).tap()
 
-        element(app, containing: "Rohit · TalentEdge").tap()
+        let rohit = element(app, containing: "Rohit · TalentEdge")
+        scrollTo(app, rohit)
+        rohit.tap()
         wait(element(app, containing: "senior product manager"))
         shot("12-call-summary")
         app.navigationBars.buttons.element(boundBy: 0).tap()
 
-        app.swipeUp()
-        element(app, containing: "74285").tap()
+        let scam = element(app, containing: "74285")
+        scrollTo(app, scam)
+        scam.tap()
         wait(element(app, containing: "KYC"))
         shot("13-scam-call")
         app.navigationBars.buttons.element(boundBy: 0).tap()

@@ -1,5 +1,6 @@
 """Assistant number, forwarding, assistant settings, rules, contacts and screening."""
 
+import asyncio
 from datetime import timedelta
 
 from fastapi import APIRouter, HTTPException, status
@@ -27,9 +28,11 @@ from app.schemas import (
     ScreeningHintIn,
     VoiceOut,
 )
+from app.services.calls import FORWARDING_PROBLEM_STREAK
 from app.services.lines import NoNumbersAvailable, TelephonyNotConfigured, allocate_number, release_line, start_verification
 from app.voice.services import SARVAM_VOICES
 
+_BACKGROUND: set[asyncio.Task] = set()
 router = APIRouter(prefix="/v1")
 
 
@@ -45,6 +48,9 @@ def line_out(line: Line) -> LineOut:
         ring_seconds=line.ring_seconds,
         verified_at=line.verified_at,
         last_forwarded_at=line.last_forwarded_at,
+        missed_streak=line.missed_streak or 0,
+        sim_count=line.sim_count or 1,
+        forwarding_problem=(line.missed_streak or 0) >= FORWARDING_PROBLEM_STREAK,
         activation_codes=[ForwardingCodeOut(**c.__dict__) for c in activation_codes(line.assistant_number, line.ring_seconds)],
         deactivation_code=DEACTIVATE_CODE,
         deactivation_all_code=DEACTIVATE_ALL_CODE,
@@ -141,6 +147,8 @@ def assistant_out(prefs: AssistantSettings) -> AssistantOut:
         retention_days=prefs.retention_days,
         urgent_passthrough=prefs.urgent_passthrough,
         delivery_note=prefs.delivery_note,
+        ring_verified_business=prefs.ring_verified_business,
+        ring_repeat_callers=prefs.ring_repeat_callers,
     )
 
 
@@ -177,6 +185,12 @@ async def update_assistant(body: AssistantUpdate, session: Session, user: Curren
     if snooze is not None:
         prefs.snooze_until = utcnow() + timedelta(minutes=snooze) if snooze else None
     await session.commit()
+    if {"voice", "languages", "greeting", "assistant_name", "record_calls"} & data.keys():
+        from app.voice.session import warm_greeting
+
+        _warm = asyncio.create_task(warm_greeting(user.id))  # next call greets instantly
+        _BACKGROUND.add(_warm)
+        _warm.add_done_callback(_BACKGROUND.discard)
     return assistant_out(prefs)
 
 
@@ -218,18 +232,10 @@ async def replace_rules(body: list[RuleIn], session: Session, user: CurrentUser)
 
 @router.post("/contacts/sync")
 async def sync_contacts(body: ContactsSync, session: Session, user: CurrentUser) -> dict:
-    if body.replace:
-        await session.execute(delete(ContactEntry).where(ContactEntry.user_id == user.id))
-    seen: set[str] = set()
-    for contact in body.contacts:
-        for raw in contact.numbers[:5]:
-            number = normalize(raw)
-            if not number or number in seen:
-                continue
-            seen.add(number)
-            session.add(ContactEntry(user_id=user.id, number_e164=number, name=contact.name[:120]))
+    """Retired: address books stay on the phone. Older app versions still call this; we store nothing."""
+    await session.execute(delete(ContactEntry).where(ContactEntry.user_id == user.id))
     await session.commit()
-    return {"saved": len(seen)}
+    return {"saved": 0}
 
 
 @router.post("/screening/hints", status_code=204)
@@ -237,7 +243,8 @@ async def screening_hint(body: ScreeningHintIn, session: Session, user: CurrentU
     number = normalize(body.caller_number)
     if not number:
         return
-    session.add(ScreeningHint(user_id=user.id, caller_number=number, decision=body.decision))
+    name = (body.caller_name or "").strip() or None
+    session.add(ScreeningHint(user_id=user.id, caller_number=number, decision=body.decision, caller_name=name))
     await session.commit()
 
 
@@ -257,4 +264,6 @@ async def screening_policy(session: Session, user: CurrentUser) -> dict:
         "assistant_number": line.assistant_number if line else None,
         "always_ring": sorted({r.match_value for r in rules if r.action in ("ring_me", "connect")} | set(system_numbers)),
         "always_screen": sorted({r.match_value for r in rules if r.action in ("decline", "handle")}),
+        "ring_verified_business": prefs.ring_verified_business,
+        "ring_repeat_callers": prefs.ring_repeat_callers,
     }

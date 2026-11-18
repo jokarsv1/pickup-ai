@@ -71,8 +71,13 @@ class Repository(val api: ApiClient, val store: SessionStore) {
     suspend fun options(): AssistantOptions = api.get("/v1/assistant/options")
     suspend fun rules(): List<RuleDto> = api.get("/v1/rules")
     suspend fun saveRules(rules: List<RuleDto>): List<RuleDto> = api.put<List<RuleDto>, List<RuleDto>>("/v1/rules", rules).also { refreshPolicy() }
-    suspend fun syncContacts(contacts: List<ContactBody>) = api.post<ContactsSyncBody, Unit>("/v1/contacts/sync", ContactsSyncBody(contacts))
-    suspend fun sendHint(number: String, decision: String) = api.post<HintBody, Unit>("/v1/screening/hints", HintBody(number, decision))
+    suspend fun sendHint(number: String, decision: String, callerName: String? = null) =
+        api.post<HintBody, Unit>("/v1/screening/hints", HintBody(number, decision, callerName))
+
+    suspend fun reportProblem(message: String, diagnostics: Map<String, String>) =
+        api.post<SupportReportBody, Unit>("/v1/support/report", SupportReportBody(message, diagnostics))
+
+    suspend fun signalTyping(callId: String) = api.postEmpty<Unit>("/v1/calls/$callId/typing")
 
     suspend fun refreshPolicy(): ScreeningPolicyDto? = runCatching {
         api.get<ScreeningPolicyDto>("/v1/screening/policy").also { store.savePolicy(AppJson.encodeToString(ScreeningPolicyDto.serializer(), it)) }

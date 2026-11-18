@@ -25,7 +25,18 @@ object ScreeningPolicy {
         val alwaysScreen: Set<String>,
         val activeSims: Int,
         val configuredSims: Int,
+        /** TRAI's 1600 (banks, insurers, government) and 1601 (service) numbers ring. */
+        val ringVerifiedBusiness: Boolean = true,
+        /** The same number calling again within [REPEAT_WINDOW_MILLIS] rings: urgent callers try twice. */
+        val ringRepeatCallers: Boolean = true,
+        /** When this number was last sent to the assistant, if recently. */
+        val lastSentToAssistantMillis: Long? = null,
     )
+
+    const val REPEAT_WINDOW_MILLIS = 3 * 60 * 1000L
+
+    /** TRAI's verified business series (TCCCPR Third Amendment, 2026). */
+    fun isVerifiedBusiness(number: String): Boolean = number.startsWith("+911600") || number.startsWith("+911601")
 
     fun decide(input: Input): Decision {
         if (!input.isIncoming) return Decision.RING
@@ -47,6 +58,11 @@ object ScreeningPolicy {
         if (snoozed) return Decision.RING
 
         if (number != null && number in input.alwaysScreen) return Decision.SEND_TO_ASSISTANT
+        if (number != null && input.ringVerifiedBusiness && isVerifiedBusiness(number)) return Decision.RING
+        val last = input.lastSentToAssistantMillis
+        if (number != null && input.ringRepeatCallers && last != null && input.nowMillis - last in 0 until REPEAT_WINDOW_MILLIS) {
+            return Decision.RING
+        }
         if (input.isContact && !input.screenContacts) return Decision.RING
         // "Ring me first": let it ring; the carrier's no-answer forwarding sends it on if ignored.
         if (input.mode == "ring_first") return Decision.RING

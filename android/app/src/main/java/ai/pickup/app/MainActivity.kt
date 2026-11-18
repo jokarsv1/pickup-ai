@@ -11,6 +11,7 @@ import ai.pickup.app.ui.home.HomeViewModel
 import ai.pickup.app.ui.onboarding.OnboardingRoute
 import ai.pickup.app.ui.onboarding.OnboardingViewModel
 import ai.pickup.app.ui.onboarding.Step
+import ai.pickup.app.ui.settings.HelpScreen
 import ai.pickup.app.ui.settings.InstructionsScreen
 import ai.pickup.app.ui.settings.PlanScreen
 import ai.pickup.app.ui.settings.SettingsScreen
@@ -81,6 +82,7 @@ class MainActivity : ComponentActivity() {
 
 private object Routes {
     const val ONBOARDING = "onboarding"
+    const val HELP = "help"
     const val SETUP = "setup"
     const val HOME = "home"
     const val CHAT = "chat"
@@ -177,7 +179,12 @@ private fun AppNav(graph: AppGraph, startAtMain: Boolean, deepLink: String?, onD
                     onOpenPlan = { nav.navigate(Routes.PLAN) },
                     onRerunSetup = { nav.navigate(Routes.SETUP) },
                     onSignedOut = { /* the gate switches back to onboarding */ },
+                    onOpenHelp = { nav.navigate(Routes.HELP) },
                 )
+            }
+            composable(Routes.HELP) {
+                val vm = viewModel(key = "help") { SettingsViewModel(graph) }
+                HelpScreen(vm, onBack = { nav.popBackStack() }, onRerunSetup = { nav.navigate(Routes.SETUP) })
             }
             composable(Routes.INSTRUCTIONS) {
                 val vm = viewModel { SettingsViewModel(graph) }

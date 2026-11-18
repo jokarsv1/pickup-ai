@@ -73,6 +73,10 @@ data class LineDto(
     @SerialName("ring_seconds") val ringSeconds: Int = 20,
     @SerialName("verified_at") val verifiedAt: String? = null,
     @SerialName("last_forwarded_at") val lastForwardedAt: String? = null,
+    /** Calls the phone sent on that never arrived, in a row: the carrier dropped forwarding. */
+    @SerialName("missed_streak") val missedStreak: Int = 0,
+    @SerialName("sim_count") val simCount: Int = 1,
+    @SerialName("forwarding_problem") val forwardingProblem: Boolean = false,
     @SerialName("activation_codes") val activationCodes: List<ForwardingCode> = emptyList(),
     @SerialName("deactivation_code") val deactivationCode: String = "##004#",
     @SerialName("deactivation_all_code") val deactivationAllCode: String = "##002#",
@@ -103,6 +107,8 @@ data class AssistantDto(
     @SerialName("retention_days") val retentionDays: Int = 90,
     @SerialName("urgent_passthrough") val urgentPassthrough: Boolean = true,
     @SerialName("delivery_note") val deliveryNote: String? = null,
+    @SerialName("ring_verified_business") val ringVerifiedBusiness: Boolean = true,
+    @SerialName("ring_repeat_callers") val ringRepeatCallers: Boolean = true,
 )
 
 @Serializable
@@ -120,6 +126,8 @@ data class AssistantPatch(
     @SerialName("retention_days") val retentionDays: Int? = null,
     @SerialName("urgent_passthrough") val urgentPassthrough: Boolean? = null,
     @SerialName("delivery_note") val deliveryNote: String? = null,
+    @SerialName("ring_verified_business") val ringVerifiedBusiness: Boolean? = null,
+    @SerialName("ring_repeat_callers") val ringRepeatCallers: Boolean? = null,
 )
 
 @Serializable
@@ -146,13 +154,15 @@ data class RuleDto(
 )
 
 @Serializable
-data class ContactBody(val name: String, val numbers: List<String>)
+data class HintBody(
+    @SerialName("caller_number") val callerNumber: String,
+    val decision: String = "declined",
+    /** Only for a saved contact the user chose to screen: their name, for this one call. */
+    @SerialName("caller_name") val callerName: String? = null,
+)
 
 @Serializable
-data class ContactsSyncBody(val contacts: List<ContactBody>, val replace: Boolean = true)
-
-@Serializable
-data class HintBody(@SerialName("caller_number") val callerNumber: String, val decision: String = "declined")
+data class SupportReportBody(val message: String, val diagnostics: Map<String, String> = emptyMap())
 
 @Serializable
 data class ScreeningPolicyDto(
@@ -163,6 +173,8 @@ data class ScreeningPolicyDto(
     @SerialName("assistant_number") val assistantNumber: String? = null,
     @SerialName("always_ring") val alwaysRing: List<String> = emptyList(),
     @SerialName("always_screen") val alwaysScreen: List<String> = emptyList(),
+    @SerialName("ring_verified_business") val ringVerifiedBusiness: Boolean = true,
+    @SerialName("ring_repeat_callers") val ringRepeatCallers: Boolean = true,
 )
 
 @Serializable
@@ -182,6 +194,8 @@ data class CallSummary(
     val summary: String? = null,
     val urgency: String? = null,
     @SerialName("is_spam") val isSpam: Boolean = false,
+    /** TRAI's regulated business numbers, e.g. "Verified bank or government number". */
+    @SerialName("caller_label") val callerLabel: String? = null,
     @SerialName("started_at") val startedAt: String,
     @SerialName("duration_seconds") val durationSeconds: Int? = null,
     @SerialName("has_recording") val hasRecording: Boolean = false,
@@ -217,6 +231,8 @@ data class CallDetail(
     val summary: String? = null,
     val urgency: String? = null,
     @SerialName("is_spam") val isSpam: Boolean = false,
+    /** TRAI's regulated business numbers, e.g. "Verified bank or government number". */
+    @SerialName("caller_label") val callerLabel: String? = null,
     @SerialName("started_at") val startedAt: String,
     @SerialName("duration_seconds") val durationSeconds: Int? = null,
     @SerialName("has_recording") val hasRecording: Boolean = false,

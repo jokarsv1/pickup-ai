@@ -96,6 +96,10 @@ class LineOut(BaseModel):
     ring_seconds: int
     verified_at: datetime | None
     last_forwarded_at: datetime | None
+    # Calls the phone sent to the assistant that never arrived, in a row (carrier dropped forwarding).
+    missed_streak: int = 0
+    forwarding_problem: bool = False
+    sim_count: int = 1
     activation_codes: list[ForwardingCodeOut]
     deactivation_code: str
     deactivation_all_code: str
@@ -121,6 +125,8 @@ class AssistantOut(BaseModel):
     retention_days: int
     urgent_passthrough: bool
     delivery_note: str | None
+    ring_verified_business: bool = True
+    ring_repeat_callers: bool = True
 
 
 class AssistantUpdate(BaseModel):
@@ -137,6 +143,8 @@ class AssistantUpdate(BaseModel):
     retention_days: int | None = Field(None, ge=1, le=365)
     urgent_passthrough: bool | None = None
     delivery_note: str | None = Field(None, max_length=300)
+    ring_verified_business: bool | None = None
+    ring_repeat_callers: bool | None = None
 
 
 class PackOut(BaseModel):
@@ -182,6 +190,18 @@ class ContactsSync(BaseModel):
 class ScreeningHintIn(BaseModel):
     caller_number: str
     decision: Literal["declined", "allowed", "silenced"] = "declined"
+    # Only for a saved contact the user chose to screen: their name, for this call alone.
+    caller_name: str | None = Field(None, max_length=120)
+
+
+class SupportReportIn(BaseModel):
+    message: str = Field(..., min_length=3, max_length=2000)
+    diagnostics: dict[str, str | int | bool | None] = Field(default_factory=dict, max_length=40)
+
+
+class SupportReportOut(BaseModel):
+    id: str
+    created_at: datetime
 
 
 class TranscriptLine(BaseModel):
@@ -215,6 +235,8 @@ class CallSummaryOut(BaseModel):
     summary: str | None
     urgency: str | None
     is_spam: bool
+    # TRAI's regulated business series: "Verified bank or government number" and so on.
+    caller_label: str | None = None
     started_at: datetime
     duration_seconds: int | None
     has_recording: bool
