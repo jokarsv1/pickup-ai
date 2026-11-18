@@ -1,0 +1,40 @@
+[32m2026-11-18 13:10:40.463[0m | [1mINFO    [0m | [36mpipecat[0m:[36m<module>[0m:[36m54[0m - [1mᓚᘏᗢ Pipecat 1.16.0 (Python 3.12.10 (v3.12.10:0cc81280367, Apr  8 2025, 08:46:59) [Clang 13.0.0 (clang-1300.0.29.30)]) ᓚᘏᗢ[0m
+INFO:     Started server process [1463]
+INFO:     Waiting for application startup.
+INFO:     Application startup complete.
+[32m2026-11-18 13:10:42.143[0m | [34m[1mDEBUG   [0m | [36mpipecat.audio.vad.silero[0m:[36m__init__[0m:[36m169[0m - [34m[1mLoading Silero VAD model...[0m
+INFO:     Uvicorn running on http://127.0.0.1:8000 (Press CTRL+C to quit)
+[32m2026-11-18 13:10:42.232[0m | [34m[1mDEBUG   [0m | [36mpipecat.audio.vad.silero[0m:[36m__init__[0m:[36m194[0m - [34m[1mLoaded Silero VAD[0m
+[32m2026-11-18 13:10:42.234[0m | [34m[1mDEBUG   [0m | [36mpipecat.audio.turn.smart_turn.local_smart_turn_v3[0m:[36m__init__[0m:[36m69[0m - [34m[1mLoading Local Smart Turn v3.x model from /Library/Frameworks/Python.framework/Versions/3.12/lib/python3.12/site-packages/pipecat/audio/turn/smart_turn/data/smart-turn-v3.2-cpu.onnx...[0m
+[32m2026-11-18 13:10:42.265[0m | [34m[1mDEBUG   [0m | [36mpipecat.audio.turn.smart_turn.local_smart_turn_v3[0m:[36m__init__[0m:[36m79[0m - [34m[1mLoaded Local Smart Turn v3.x[0m
+[32m2026-11-18 13:10:42.266[0m | [1mINFO    [0m | [36mapp.main[0m:[36m_prewarm_voice_models[0m:[36m65[0m - [1mVoice models loaded[0m
+INFO:     127.0.0.1:49183 - "GET /healthz HTTP/1.1" 200 OK
+INFO:     127.0.0.1:49185 - "GET /v1/config HTTP/1.1" 200 OK
+INFO:     127.0.0.1:49943 - "GET /v1/config HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50016 - "POST /v1/auth/dev HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50016 - "POST /v1/stream/ticket HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50062 - "WebSocket /v1/stream?ticket=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJ1c3JfNWJlNGMzNDI4YmM1NGFkZWE5OTciLCJ0eXAiOiJ3cyIsImV4cCI6MTc5NTAwNzk1M30.9BM6oztACfVC3svGqhtSD5XVT56vJpQc1YeUnmO06G4" [accepted]
+INFO:     connection open
+INFO:     127.0.0.1:50045 - "GET /v1/calls HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50046 - "GET /v1/me/stats HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50049 - "GET /v1/me/entitlement HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50048 - "GET /v1/calls/live HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50047 - "GET /v1/lines/current HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50116 - "GET /v1/calls/call_05067bc3f6374eeda260 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50116 - "GET /v1/calls/call_05067bc3f6374eeda260 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50219 - "GET /v1/calls/call_198c1be3e47240929103 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50219 - "POST /v1/calls/call_198c1be3e47240929103/read HTTP/1.1" 204 No Content
+INFO:     127.0.0.1:50262 - "GET /v1/calls/call_119d731c558f4a27a86b HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50262 - "POST /v1/calls/call_119d731c558f4a27a86b/read HTTP/1.1" 204 No Content
+INFO:     127.0.0.1:50300 - "GET /v1/assistant/chat HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50300 - "GET /v1/assistant HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50300 - "GET /v1/assistant/options HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50300 - "GET /v1/me/entitlement HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50300 - "GET /v1/lines/current HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50441 - "GET /v1/config HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50541 - "POST /v1/auth/dev HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50541 - "GET /v1/assistant/options HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50586 - "PATCH /v1/me HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50586 - "PATCH /v1/assistant HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50586 - "GET /v1/lines/current HTTP/1.1" 404 Not Found
+INFO:     127.0.0.1:50586 - "POST /v1/lines HTTP/1.1" 200 OK

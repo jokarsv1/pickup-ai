@@ -1,0 +1,19 @@
+Writing result bundle at path:
+	/Users/runner/work/_temp/tour.xcresult
+
+--- xcodebuild: WARNING: Using the first of multiple matching destinations:
+{ platform:iOS Simulator, arch:arm64, id:2FEACF5E-886C-4FB8-A137-C571FBA5CF5C, OS:26.2, name:iPhone 17 Pro }
+{ platform:iOS Simulator, arch:x86_64, id:2FEACF5E-886C-4FB8-A137-C571FBA5CF5C, OS:26.2, name:iPhone 17 Pro }
+/* com.apple.actool.notices */
+/Users/runner/work/pickup-ai/pickup-ai/ios/Pickup/Resources/Assets.xcassets: warning: Could not get trait set for device iPhone18,1 with version 26.2
+/* com.apple.actool.compilation-results */
+/Users/runner/Library/Developer/Xcode/DerivedData/Pickup-adtnofzxbgmcekfnjymxcchnojxn/Build/Intermediates.noindex/Pickup.build/Debug-iphonesimulator/Pickup.build/assetcatalog_generated_info.plist_thinned
+/Users/runner/Library/Developer/Xcode/DerivedData/Pickup-adtnofzxbgmcekfnjymxcchnojxn/Build/Intermediates.noindex/Pickup.build/Debug-iphonesimulator/Pickup.build/assetcatalog_output/thinned/AppIcon60x60@2x.png
+/Users/runner/Library/Developer/Xcode/DerivedData/Pickup-adtnofzxbgmcekfnjymxcchnojxn/Build/Intermediates.noindex/Pickup.build/Debug-iphonesimulator/Pickup.build/assetcatalog_output/thinned/AppIcon76x76@2x~ipad.png
+/Users/runner/Library/Developer/Xcode/DerivedData/Pickup-adtnofzxbgmcekfnjymxcchnojxn/Build/Intermediates.noindex/Pickup.build/Debug-iphonesimulator/Pickup.build/assetcatalog_output/thinned/Assets.car
+
+2026-11-18 13:19:41.992 xcodebuild[5294:18395] [MT] IDETestOperationsObserverDebug: 350.149 elapsed -- Testing started completed.
+2026-11-18 13:19:41.993 xcodebuild[5294:18395] [MT] IDETestOperationsObserverDebug: 0.000 sec, +0.000 sec -- start
+2026-11-18 13:19:41.993 xcodebuild[5294:18395] [MT] IDETestOperationsObserverDebug: 350.149 sec, +350.149 sec -- end
+Testing started
+result: Passed passed: 2 failed: 0
