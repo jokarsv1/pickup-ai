@@ -118,6 +118,15 @@ type both ExoPhones in the box (e.g. `+918047491899, +918047491900`) → **Run w
 **2.10 Finish setup in the app**: Home → **Continue setup**. It gives you codes to dial for call
 forwarding, then places a test call.
 
+**2.11 Let the assistant make calls for you** (optional: "call the clinic and book a check-up"):
+1. In Exotel, App Bazaar → create a **second** flow with only a **Voicebot** applet → paste the
+   same **Voicebot** link → Save. Note the flow's number (App ID) shown in its address.
+2. GitHub → Settings → Secrets → Actions → **New repository secret**: name
+   `EXOTEL_OUTBOUND_FLOW_ID`, value = that number. Then Actions → **Deploy backend** → Run workflow.
+3. Ask Exotel support: "We place transactional calls that our users request (appointment booking,
+   follow-ups). Please enable DND calling, or tell us what you need." Without this, numbers on
+   the Do-Not-Disturb list (many personal mobiles) can't be reached; most businesses can.
+
 ## Bucket 3: Before you open it to the public
 
 **3.1 SMS sign-in for everyone** (Firebase)
