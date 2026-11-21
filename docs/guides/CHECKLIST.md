@@ -49,20 +49,36 @@ Your second number works the same way. If anything looks wrong, send Claude a sc
 
 Calls only reach your AI assistant once you have Indian virtual numbers from Exotel.
 
-**2.1 Get one business document ready.** Exotel's KYC asks for a business, not just a person:
-- Company or LLP: Certificate of Incorporation, GST certificate, company PAN, signatory ID
-- Sole proprietor: GST certificate **or** Shop & Establishment licence, your PAN, your ID proof
+**2.1 Get your documents ready.** Exotel's business verification (updated 19 Nov 2026) needs:
 
-If you have none, ask Exotel's sales team which registration they accept for a new sole proprietor
-before applying for one.
+If you're on your own (no company), choose **Sole Proprietorship or Individual**:
+- Your own **PAN card** number.
+- **One** business certificate (PDF/JPG/PNG, under 10 MB): **Udyam (MSME) certificate**,
+  Shop & Establishment certificate, or Trade licence. Udyam is the quickest: free, online,
+  Aadhaar + PAN, about 15 minutes, only at **udyamregistration.gov.in** (other sites charge for
+  the same thing).
+- **GST number**, if you have one. If not: choose **GST unregistered** and tick the declaration.
+- Your **Aadhaar-linked mobile number** and a phone with a camera (DigiLocker OTP and a selfie).
+
+If you have a **Private Limited / LLP**: company PAN, Certificate of Incorporation, GST number (or
+GST exemption proof), names of two directors, and a director as signatory (their Aadhaar-linked
+mobile for DigiLocker).
 
 **2.2 Sign up**
 1. Go to **exotel.com** → **Sign up** (or "Start free trial"). Use a business email if you have one.
 2. If asked for a region, pick **Mumbai** (Exotel recommends it for Indian customers).
 
-**2.3 KYC**
-1. In Exotel: **My account → KYC Docs** → upload the documents from 2.1.
-2. Wait for approval (Exotel says 2–3 business days).
+**2.3 KYC (about 5 minutes, then a few days of review)**
+1. In Exotel: **My Account → Company Info → Start Business Verification**.
+2. Enter your PAN → **Verify PAN** → check the name → **Yes, Continue**.
+3. Upload the Udyam (or other) certificate → check the name and address it reads →
+   **Verify & Continue**.
+4. Pick your GSTIN, or **GST unregistered** → tick the declaration → **Continue**.
+5. **Send KYC** to your own mobile/email → open the link on your phone → DigiLocker (OTP to your
+   Aadhaar mobile) → **Allow** → selfie (allow camera and location) → sign the form →
+   "KYC process completed". The link works for 14 days.
+6. Stuck anywhere: **Help me verify** (Exotel replies within 24 hours). Details typed in by hand
+   take 3 days to review.
 
 **2.4 Ask Exotel to switch on voice streaming** (you can do this while KYC is pending)
 1. Find your **Account SID**: in Exotel, open **API Settings** (it lists Account SID, API key and API token).
